@@ -1,0 +1,180 @@
+{
+  "name": "Content Repurposer — Blog to Multi-Platform",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "repurpose-content",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - New Content",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "content-repurpose"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.blog_url }}",
+        "options": {
+          "response": { "response": { "fullResponse": true } }
+        }
+      },
+      "id": "fetch-article",
+      "name": "Fetch Blog Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.body;\n// Extract text content (basic HTML stripping)\nconst text = html.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '')\n  .replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .substring(0, 8000);\nreturn [{ json: { content: text, url: $('Webhook - New Content').first().json.blog_url } }];"
+      },
+      "id": "extract-text",
+      "name": "Extract Article Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a content repurposing expert. Given a blog article, create ALL of the following in JSON format:\n\n1. \"twitter_thread\": Array of 5-7 tweets (max 280 chars each). First tweet = hook. Last = CTA with link.\n2. \"linkedin_post\": Professional post (1200-1500 chars) with emojis, line breaks, hashtags.\n3. \"newsletter_snippet\": Email-friendly summary (300-400 words) with key takeaways as bullet points.\n4. \"instagram_caption\": Engaging caption (2000 chars max) with relevant hashtags.\n5. \"youtube_short_script\": 30-second script with hook, 3 key points, CTA.\n\nArticle:\n{{ $json.content }}\n\nOriginal URL: {{ $json.url }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 3000
+        }
+      },
+      "id": "ai-repurpose",
+      "name": "AI - Repurpose Content",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = JSON.parse($input.first().json.message.content);\nreturn [{ json: aiResponse }];"
+      },
+      "id": "parse-content",
+      "name": "Parse Repurposed Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "postType": "text",
+        "text": "={{ $json.twitter_thread[0] }}"
+      },
+      "id": "twitter-post",
+      "name": "Post to Twitter/X",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [1500, 100]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.linkedin_post }}",
+        "shareMediaCategory": "NONE",
+        "additionalFields": {}
+      },
+      "id": "linkedin-post",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [1500, 250]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "toEmail": "={{ $('Webhook - New Content').first().json.subscriber_email || 'newsletter@example.com' }}",
+        "subject": "=📬 New post: {{ $('Webhook - New Content').first().json.title || 'Latest Article' }}",
+        "emailType": "html",
+        "message": "=<h2>{{ $('Webhook - New Content').first().json.title || 'Latest Article' }}</h2>\n<p>{{ $json.newsletter_snippet }}</p>\n<p><a href=\"{{ $('Webhook - New Content').first().json.blog_url }}\">Read the full article →</a></p>"
+      },
+      "id": "email-newsletter",
+      "name": "Send Newsletter Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "mode": "id", "value": "YOUR_SHEET_ID" },
+        "sheetName": "Content Log",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Source URL": "={{ $('Webhook - New Content').first().json.blog_url }}",
+            "Twitter": "Posted",
+            "LinkedIn": "Posted",
+            "Newsletter": "Sent",
+            "Instagram Caption": "={{ $json.instagram_caption.substring(0, 100) }}...",
+            "YouTube Script": "={{ $json.youtube_short_script.substring(0, 100) }}...",
+            "Date": "={{ $now.format('yyyy-MM-dd HH:mm') }}"
+          }
+        }
+      },
+      "id": "sheets-log",
+      "name": "Log to Content Tracker",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1500, 550]
+    },
+    {
+      "parameters": {
+        "channel": "#content",
+        "text": "=✅ Content repurposed from: {{ $('Webhook - New Content').first().json.blog_url }}\n\n📊 Published to: Twitter, LinkedIn, Newsletter\n📋 Ready for manual: Instagram, YouTube Short\n\n💡 Instagram caption and YouTube script saved in Content Tracker sheet.",
+        "otherOptions": {}
+      },
+      "id": "slack-summary",
+      "name": "Notify Team (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1750, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - New Content": {
+      "main": [[{ "node": "Fetch Blog Article", "type": "main", "index": 0 }]]
+    },
+    "Fetch Blog Article": {
+      "main": [[{ "node": "Extract Article Text", "type": "main", "index": 0 }]]
+    },
+    "Extract Article Text": {
+      "main": [[{ "node": "AI - Repurpose Content", "type": "main", "index": 0 }]]
+    },
+    "AI - Repurpose Content": {
+      "main": [[{ "node": "Parse Repurposed Content", "type": "main", "index": 0 }]]
+    },
+    "Parse Repurposed Content": {
+      "main": [[
+        { "node": "Post to Twitter/X", "type": "main", "index": 0 },
+        { "node": "Post to LinkedIn", "type": "main", "index": 0 },
+        { "node": "Send Newsletter Email", "type": "main", "index": 0 },
+        { "node": "Log to Content Tracker", "type": "main", "index": 0 }
+      ]]
+    },
+    "Log to Content Tracker": {
+      "main": [[{ "node": "Notify Team (Slack)", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateId": "content-repurposer-v1",
+    "description": "Turn any blog post into Twitter threads, LinkedIn posts, newsletter emails, Instagram captions, and YouTube short scripts — all powered by GPT. One input, 5+ outputs.",
+    "categories": ["Marketing", "AI", "Content"],
+    "author": "AuraHub (github.com/DILOmcfly)"
+  }
+}

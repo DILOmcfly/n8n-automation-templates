@@ -1,0 +1,151 @@
+{
+  "name": "Social Media Auto-Publisher (Multi-Platform)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": { "item": [{ "mode": "everyMinute", "minute": 30 }] },
+        "sheetName": "Content Calendar",
+        "documentId": { "mode": "id", "value": "YOUR_CONTENT_SHEET_ID" },
+        "options": {
+          "range": "A:G"
+        }
+      },
+      "id": "sheets-trigger",
+      "name": "Check Content Calendar",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "Ready",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "leftValue": "={{ $json.Scheduled_Date }}",
+              "rightValue": "={{ $now.format('yyyy-MM-dd') }}",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "filter-ready",
+      "name": "Filter: Ready for Today",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a social media expert. Given a content topic and platform, generate an optimized post. Follow these rules:\n- Twitter/X: Max 280 chars, punchy, 2-3 hashtags\n- LinkedIn: Professional, 100-200 words, storytelling format, 3-5 hashtags\n- Instagram: Engaging caption, 5-10 hashtags, emoji-rich\n\nReturn JSON: {\"twitter\": \"...\", \"linkedin\": \"...\", \"instagram\": \"...\"}"
+            },
+            {
+              "role": "user",
+              "content": "Topic: {{ $json.Topic }}\nKey message: {{ $json.Key_Message }}\nTone: {{ $json.Tone }}\nTarget audience: {{ $json.Audience }}"
+            }
+          ]
+        },
+        "options": { "temperature": 0.8, "responseFormat": "json_object" }
+      },
+      "id": "ai-generate-posts",
+      "name": "AI - Generate Platform Posts",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "text": "={{ JSON.parse($json.message.content).twitter }}",
+        "additionalFields": {}
+      },
+      "id": "post-twitter",
+      "name": "Post to Twitter/X",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [1050, 150]
+    },
+    {
+      "parameters": {
+        "text": "={{ JSON.parse($('AI - Generate Platform Posts').item.json.message.content).linkedin }}",
+        "visibility": "PUBLIC",
+        "additionalFields": {}
+      },
+      "id": "post-linkedin",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "mode": "id", "value": "YOUR_CONTENT_SHEET_ID" },
+        "sheetName": "Content Calendar",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Published",
+            "Published_Date": "={{ $now.format('yyyy-MM-dd HH:mm') }}"
+          }
+        },
+        "options": {
+          "cellUpdate": "update",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "update-status",
+      "name": "Mark as Published",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#marketing",
+        "text": "📱 *Content Published!*\n*Topic:* {{ $('Filter: Ready for Today').item.json.Topic }}\n✅ Twitter\n✅ LinkedIn\n\n_Auto-published by AuraHub N8N_"
+      },
+      "id": "slack-confirm",
+      "name": "Confirm on Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1300, 150]
+    }
+  ],
+  "connections": {
+    "Check Content Calendar": {
+      "main": [[{ "node": "Filter: Ready for Today", "type": "main", "index": 0 }]]
+    },
+    "Filter: Ready for Today": {
+      "main": [[{ "node": "AI - Generate Platform Posts", "type": "main", "index": 0 }]]
+    },
+    "AI - Generate Platform Posts": {
+      "main": [[
+        { "node": "Post to Twitter/X", "type": "main", "index": 0 },
+        { "node": "Post to LinkedIn", "type": "main", "index": 0 }
+      ]]
+    },
+    "Post to Twitter/X": {
+      "main": [[{ "node": "Confirm on Slack", "type": "main", "index": 0 }]]
+    },
+    "Post to LinkedIn": {
+      "main": [[{ "node": "Mark as Published", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "author": "AuraHub (github.com/DILOmcfly)",
+    "description": "Reads your content calendar from Google Sheets, uses AI to generate platform-optimized posts (Twitter, LinkedIn, Instagram), publishes automatically, and notifies your team. One topic → multiple platforms, zero manual work.",
+    "categories": ["Social Media", "Marketing", "AI", "Content"],
+    "pricing": "Starter ($99)"
+  }
+}

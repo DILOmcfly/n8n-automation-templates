@@ -1,0 +1,196 @@
+{
+  "name": "WhatsApp Appointment Booker (AI-Powered)",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "whatsapp-trigger",
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "whatsapp-booking"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an AI appointment booking assistant. Analyze the customer's WhatsApp message and extract: intent (book/reschedule/cancel), preferred date/time, service type, and customer name.\n\nRespond in JSON format:\n{\n  \"intent\": \"book|reschedule|cancel|question\",\n  \"name\": \"customer name or null\",\n  \"date\": \"YYYY-MM-DD or null\",\n  \"time\": \"HH:MM or null\",\n  \"service\": \"service type or null\",\n  \"reply\": \"friendly reply to send back\"\n}\n\nCustomer message: {{ $json.message.text }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 500
+        }
+      },
+      "id": "openai-intent",
+      "name": "AI - Parse Intent",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiResponse = JSON.parse($input.first().json.message.content);\nreturn [{ json: aiResponse }];"
+      },
+      "id": "parse-json",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "booking",
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "book",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "intent-router",
+      "name": "Route by Intent",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.calendly.com/scheduling_links",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "max_event_count",
+              "value": 1
+            },
+            {
+              "name": "owner",
+              "value": "YOUR_CALENDLY_EVENT_URI"
+            },
+            {
+              "name": "owner_type",
+              "value": "EventType"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "calendly-create",
+      "name": "Create Calendly Link",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "mode": "id", "value": "YOUR_SHEET_ID" },
+        "sheetName": "Bookings",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Customer": "={{ $('Parse AI Response').first().json.name }}",
+            "Phone": "={{ $('WhatsApp Trigger').first().json.message.from }}",
+            "Date": "={{ $('Parse AI Response').first().json.date }}",
+            "Time": "={{ $('Parse AI Response').first().json.time }}",
+            "Service": "={{ $('Parse AI Response').first().json.service }}",
+            "Status": "Pending",
+            "Created": "={{ $now.format('yyyy-MM-dd HH:mm') }}"
+          }
+        }
+      },
+      "id": "sheets-log",
+      "name": "Log Booking",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').first().json.message.from }}",
+        "textBody": "={{ $('Parse AI Response').first().json.reply }}\n\n📅 Book your appointment here: {{ $('Create Calendly Link').first().json.resource.booking_url }}"
+      },
+      "id": "whatsapp-reply-book",
+      "name": "Reply - Booking Link",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [1500, 200]
+    },
+    {
+      "parameters": {
+        "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').first().json.message.from }}",
+        "textBody": "={{ $('Parse AI Response').first().json.reply }}"
+      },
+      "id": "whatsapp-reply-other",
+      "name": "Reply - General",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "channel": "#bookings",
+        "text": "=📅 New booking request!\n*Customer:* {{ $('Parse AI Response').first().json.name }}\n*Service:* {{ $('Parse AI Response').first().json.service }}\n*Date:* {{ $('Parse AI Response').first().json.date }} at {{ $('Parse AI Response').first().json.time }}",
+        "otherOptions": {}
+      },
+      "id": "slack-notify",
+      "name": "Notify Team (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1500, 400]
+    }
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [[{ "node": "AI - Parse Intent", "type": "main", "index": 0 }]]
+    },
+    "AI - Parse Intent": {
+      "main": [[{ "node": "Parse AI Response", "type": "main", "index": 0 }]]
+    },
+    "Parse AI Response": {
+      "main": [[{ "node": "Route by Intent", "type": "main", "index": 0 }]]
+    },
+    "Route by Intent": {
+      "main": [
+        [
+          { "node": "Create Calendly Link", "type": "main", "index": 0 },
+          { "node": "Log Booking", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Reply - General", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Create Calendly Link": {
+      "main": [[{ "node": "Reply - Booking Link", "type": "main", "index": 0 }]]
+    },
+    "Log Booking": {
+      "main": [[{ "node": "Notify Team (Slack)", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateId": "whatsapp-appointment-booker-v1",
+    "description": "AI-powered WhatsApp chatbot that books appointments via Calendly, logs to Google Sheets, and notifies your team on Slack. GPT analyzes customer messages to extract booking intent.",
+    "categories": ["Sales", "Communication", "AI"],
+    "author": "AuraHub (github.com/DILOmcfly)"
+  }
+}

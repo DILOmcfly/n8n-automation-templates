@@ -1,48 +1,34 @@
-# N8N Workflow Templates — Premium Collection
+# N8N Workflow Templates — Fiverr Portfolio
 
-Production-ready N8N automation templates for businesses. Built by [DILOmcfly](https://github.com/DILOmcfly).
+Professional N8N automation workflows for the AuraHub Fiverr gig. Each workflow is a complete, functional JSON export ready to import into any N8N instance.
 
-## Templates
+## Workflows
 
-### 1. 🎯 Lead Generation & CRM Pipeline
-**File:** `lead-gen-crm.json`
-**Integrations:** Webhook, Google Sheets, Gmail, Telegram
-**Features:**
-- Webhook trigger for any form/landing page
-- Smart lead scoring (0-100) based on data completeness
-- Hot/warm/cold priority classification
-- Auto-save to Google Sheets CRM
-- Personalized welcome emails
-- Instant Telegram alerts for hot leads
-- Nurture sequence for cold leads
+| # | Workflow | Nodes | Key Integrations | Use Case |
+|---|---------|-------|------------------|----------|
+| 01 | **Lead Capture → CRM → AI Follow-up** | 8 | Webhook, Google Sheets, OpenAI, Gmail | Capture leads, enrich with AI, send personalized emails |
+| 02 | **AI Email Responder** | 7 | Gmail Trigger, OpenAI, Google Sheets | GPT reads incoming emails and drafts intelligent responses |
+| 03 | **Social Media Auto-Publisher** | 8 | RSS/Webhook, OpenAI, Twitter, LinkedIn | Write once, publish everywhere with AI optimization |
+| 04 | **WhatsApp Appointment Booker** | 9 | WhatsApp, OpenAI, Calendly, Google Sheets, Slack | AI chatbot that books appointments via WhatsApp |
+| 05 | **Content Repurposer** | 10 | Webhook, OpenAI, Twitter, LinkedIn, Gmail, Sheets | Turn blog posts into threads, posts, newsletters, scripts |
 
-### 2. 📱 Social Media Content Autopilot *(coming soon)*
-### 3. 💰 Invoice & Payment Automation *(coming soon)*
-### 4. 🎫 Customer Support Ticket Router *(coming soon)*
-### 5. 🛒 E-commerce Order Fulfillment *(coming soon)*
+## How to Use
 
-## Installation
+1. Import any `.json` file into your N8N instance (Settings → Import Workflow)
+2. Configure credentials (API keys, OAuth) for each service
+3. Replace placeholder values (`YOUR_SHEET_ID`, `YOUR_PHONE_NUMBER_ID`, etc.)
+4. Activate and test
 
-1. Open your N8N instance
-2. Go to **Workflows** → **Import from File**
-3. Select the `.json` file
-4. Configure credentials (Google Sheets, Gmail, Telegram)
-5. Activate the workflow
+## Pricing (Fiverr)
 
-## Customization
+| Plan | Price | What You Get |
+|------|-------|-------------|
+| Starter | $99 | 1 workflow + setup + docs |
+| Business | $249 | 3 connected workflows + AI + training |
+| AI Agent | $599 | Full multi-workflow AI agent system + 30-day support |
 
-Each template includes inline documentation. Key configuration points:
-- Webhook URLs (auto-generated on activation)
-- Google Sheets document ID
-- Telegram bot token & chat ID
-- Email templates (HTML, fully customizable)
-- Lead scoring weights (adjustable in Code node)
+## About
 
-## License
-
-MIT — Free to use, modify, and resell.
-
-## Author
-
-Built with ☕ by Diego ([@DILOmcfly](https://github.com/DILOmcfly))
-Powered by Aura ✦
+Built by [AuraHub](https://github.com/DILOmcfly) — AI automation specialists.
+- 🎬 YouTube: [@AuraHub](https://youtube.com/@AuraHub-d4w)
+- 🛠️ GitHub: [DILOmcfly](https://github.com/DILOmcfly)

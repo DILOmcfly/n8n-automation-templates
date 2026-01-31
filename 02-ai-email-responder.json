@@ -1,0 +1,159 @@
+{
+  "name": "AI Email Auto-Responder (GPT-4)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": { "item": [{ "mode": "everyMinute", "minute": 5 }] },
+        "filters": { "readStatus": "unread" }
+      },
+      "id": "email-trigger",
+      "name": "Check New Emails",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.from }}",
+              "rightValue": "noreply",
+              "operator": { "type": "string", "operation": "notContains" }
+            },
+            {
+              "leftValue": "={{ $json.from }}",
+              "rightValue": "newsletter",
+              "operator": { "type": "string", "operation": "notContains" }
+            }
+          ]
+        }
+      },
+      "id": "filter-spam",
+      "name": "Filter: Skip newsletters/noreply",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a professional email assistant. Analyze the incoming email and:\n1. Classify it: inquiry, support, complaint, spam, or other\n2. Draft a professional, helpful reply\n3. Keep replies under 200 words\n4. Be warm but professional\n5. If it needs human attention, say so clearly\n\nReturn JSON: {\"category\": \"...\", \"needs_human\": true/false, \"draft_reply\": \"...\", \"summary\": \"one-line summary\"}"
+            },
+            {
+              "role": "user",
+              "content": "From: {{ $json.from }}\nSubject: {{ $json.subject }}\n\nBody:\n{{ $json.text }}"
+            }
+          ]
+        },
+        "options": { "temperature": 0.5, "responseFormat": "json_object" }
+      },
+      "id": "ai-analyze",
+      "name": "AI - Analyze & Draft Reply",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ JSON.parse($json.message.content).needs_human }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-human",
+      "name": "Needs Human Review?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#email-alerts",
+        "text": "⚠️ *Email needs human attention*\n*From:* {{ $('Check New Emails').item.json.from }}\n*Subject:* {{ $('Check New Emails').item.json.subject }}\n*Category:* {{ JSON.parse($('AI - Analyze & Draft Reply').item.json.message.content).category }}\n*Summary:* {{ JSON.parse($('AI - Analyze & Draft Reply').item.json.message.content).summary }}\n\n📝 *AI Draft:*\n{{ JSON.parse($('AI - Analyze & Draft Reply').item.json.message.content).draft_reply }}"
+      },
+      "id": "slack-escalate",
+      "name": "Escalate to Human (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "hello@yourbusiness.com",
+        "toEmail": "={{ $('Check New Emails').item.json.from }}",
+        "subject": "Re: {{ $('Check New Emails').item.json.subject }}",
+        "emailType": "text",
+        "text": "={{ JSON.parse($('AI - Analyze & Draft Reply').item.json.message.content).draft_reply }}"
+      },
+      "id": "auto-reply",
+      "name": "Send AI Reply (Auto)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "mode": "id", "value": "YOUR_LOG_SHEET_ID" },
+        "sheetName": "Email Log",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('yyyy-MM-dd HH:mm') }}",
+            "From": "={{ $('Check New Emails').item.json.from }}",
+            "Subject": "={{ $('Check New Emails').item.json.subject }}",
+            "Category": "={{ JSON.parse($('AI - Analyze & Draft Reply').item.json.message.content).category }}",
+            "Auto-replied": "={{ !JSON.parse($('AI - Analyze & Draft Reply').item.json.message.content).needs_human }}",
+            "Summary": "={{ JSON.parse($('AI - Analyze & Draft Reply').item.json.message.content).summary }}"
+          }
+        }
+      },
+      "id": "log-sheet",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1500, 300]
+    }
+  ],
+  "connections": {
+    "Check New Emails": {
+      "main": [[{ "node": "Filter: Skip newsletters/noreply", "type": "main", "index": 0 }]]
+    },
+    "Filter: Skip newsletters/noreply": {
+      "main": [[{ "node": "AI - Analyze & Draft Reply", "type": "main", "index": 0 }]]
+    },
+    "AI - Analyze & Draft Reply": {
+      "main": [[{ "node": "Needs Human Review?", "type": "main", "index": 0 }]]
+    },
+    "Needs Human Review?": {
+      "main": [
+        [{ "node": "Escalate to Human (Slack)", "type": "main", "index": 0 }],
+        [{ "node": "Send AI Reply (Auto)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Escalate to Human (Slack)": {
+      "main": [[{ "node": "Log to Google Sheets", "type": "main", "index": 0 }]]
+    },
+    "Send AI Reply (Auto)": {
+      "main": [[{ "node": "Log to Google Sheets", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "author": "AuraHub (github.com/DILOmcfly)",
+    "description": "AI-powered email auto-responder. Reads new emails, classifies them (inquiry/support/complaint), drafts personalized replies with GPT-4, auto-sends simple ones, and escalates complex ones to Slack for human review. All logged to Google Sheets.",
+    "categories": ["Email", "AI", "Customer Support", "Automation"],
+    "pricing": "Business ($249)"
+  }
+}
