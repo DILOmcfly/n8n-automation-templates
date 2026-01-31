@@ -1,0 +1,176 @@
+{
+  "name": "Lead Generation & CRM Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "webhook-trigger",
+      "name": "New Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.email }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "validate-email",
+      "name": "Validate Email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Lead scoring based on data completeness and source\nconst lead = $input.all()[0].json;\nlet score = 0;\n\n// Email provided\nif (lead.email) score += 20;\n// Name provided\nif (lead.name) score += 10;\n// Company provided\nif (lead.company) score += 15;\n// Phone provided\nif (lead.phone) score += 10;\n// Source scoring\nconst sourceScores = {\n  'website': 15, 'referral': 25, 'linkedin': 20,\n  'ads': 10, 'cold': 5, 'organic': 15\n};\nscore += sourceScores[lead.source?.toLowerCase()] || 5;\n// Budget indicator\nif (lead.budget && parseInt(lead.budget) > 1000) score += 20;\n\nconst priority = score >= 60 ? 'hot' : score >= 35 ? 'warm' : 'cold';\nconst now = new Date().toISOString();\n\nreturn [{\n  json: {\n    ...lead,\n    lead_score: score,\n    priority: priority,\n    scored_at: now,\n    assigned_to: priority === 'hot' ? 'sales-team' : 'nurture-sequence'\n  }\n}];"
+      },
+      "id": "score-lead",
+      "name": "Score Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "mode": "list", "value": "" },
+        "sheetName": { "__rl": true, "mode": "list", "value": "Leads" },
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        }
+      },
+      "id": "save-to-sheets",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [910, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.priority }}",
+              "value2": "hot"
+            }
+          ]
+        }
+      },
+      "id": "check-priority",
+      "name": "Is Hot Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [910, 400]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Thanks for your interest, {{ $json.name }}!",
+        "emailType": "html",
+        "message": "<h2>Hi {{ $json.name }},</h2><p>Thank you for reaching out! We've received your inquiry and a team member will be in touch within 24 hours.</p><p>In the meantime, here are some resources that might help:</p><ul><li><a href='#'>Our portfolio</a></li><li><a href='#'>Case studies</a></li><li><a href='#'>FAQ</a></li></ul><p>Best regards,<br>The Team</p>"
+      },
+      "id": "send-welcome-email",
+      "name": "Welcome Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "",
+        "text": "🔥 *HOT LEAD ALERT!*\n\n👤 *Name:* {{ $json.name }}\n📧 *Email:* {{ $json.email }}\n🏢 *Company:* {{ $json.company }}\n📊 *Score:* {{ $json.lead_score }}/100\n📱 *Phone:* {{ $json.phone }}\n💰 *Budget:* {{ $json.budget }}\n🔗 *Source:* {{ $json.source }}\n\n⏰ Respond within 1 hour!",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "telegram-hot-alert",
+      "name": "Telegram Hot Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1130, 400]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Welcome! Here's what to expect, {{ $json.name }}",
+        "emailType": "html",
+        "message": "<h2>Hi {{ $json.name }},</h2><p>Thanks for your interest! We'll review your request and get back to you soon.</p><p>While you wait, check out our latest work.</p><p>Cheers!</p>"
+      },
+      "id": "send-nurture-email",
+      "name": "Nurture Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1130, 550]
+    },
+    {
+      "parameters": {
+        "chatId": "",
+        "text": "📋 *New Lead Added*\n\n👤 {{ $json.name }} ({{ $json.priority }})\n📊 Score: {{ $json.lead_score }}\n📧 {{ $json.email }}\n🔗 Source: {{ $json.source }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "telegram-log",
+      "name": "Telegram Log",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1350, 200]
+    }
+  ],
+  "connections": {
+    "New Lead Webhook": {
+      "main": [
+        [{ "node": "Validate Email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Email": {
+      "main": [
+        [{ "node": "Score Lead", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Score Lead": {
+      "main": [
+        [
+          { "node": "Save to Google Sheets", "type": "main", "index": 0 },
+          { "node": "Is Hot Lead?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Save to Google Sheets": {
+      "main": [
+        [{ "node": "Welcome Email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Welcome Email": {
+      "main": [
+        [{ "node": "Telegram Log", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Hot Lead?": {
+      "main": [
+        [{ "node": "Telegram Hot Alert", "type": "main", "index": 0 }],
+        [{ "node": "Nurture Email", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [
+    { "name": "lead-generation" },
+    { "name": "crm" },
+    { "name": "automation" },
+    { "name": "sales" }
+  ]
+}
