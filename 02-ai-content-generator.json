@@ -1,0 +1,156 @@
+{
+  "name": "AI Content Generator → Multi-Platform Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 9 * * 1-5" }] }
+      },
+      "id": "cron-1",
+      "name": "Schedule - Weekdays 9AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Content Calendar", "mode": "name" },
+        "filters": {
+          "conditions": [
+            { "field": "status", "condition": "equals", "value": "ready" }
+          ]
+        },
+        "options": { "returnFirstMatch": true }
+      },
+      "id": "sheets-read",
+      "name": "Get Next Content Topic",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "message",
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a professional content writer. Write engaging, informative social media content. Be concise but valuable."
+            },
+            {
+              "role": "user",
+              "content": "Write a LinkedIn post about: {{ $json.topic }}\n\nTarget audience: {{ $json.audience }}\nTone: {{ $json.tone }}\nMax length: 300 words\n\nInclude:\n- Hook (first line must grab attention)\n- 3-5 key points\n- Call to action\n- 3 relevant hashtags"
+            }
+          ]
+        },
+        "options": { "temperature": 0.7 }
+      },
+      "id": "openai-linkedin",
+      "name": "AI - Write LinkedIn Post",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "message",
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a Twitter/X content expert. Write viral, concise tweets."
+            },
+            {
+              "role": "user",
+              "content": "Convert this topic into a Twitter thread (3-5 tweets): {{ $json.topic }}\n\nStyle: punchy, valuable, shareable\nInclude emojis sparingly\nEnd with engagement question"
+            }
+          ]
+        },
+        "options": { "temperature": 0.8 }
+      },
+      "id": "openai-twitter",
+      "name": "AI - Write Twitter Thread",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "resource": "post",
+        "text": "={{ $('AI - Write LinkedIn Post').item.json.message.content }}",
+        "additionalFields": { "visibility": "PUBLIC" }
+      },
+      "id": "linkedin-1",
+      "name": "Publish to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [920, 200],
+      "notes": "Requires LinkedIn OAuth credentials"
+    },
+    {
+      "parameters": {
+        "text": "={{ $('AI - Write Twitter Thread').item.json.message.content }}",
+        "additionalFields": {}
+      },
+      "id": "twitter-1",
+      "name": "Publish to X/Twitter",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [920, 400],
+      "notes": "Requires Twitter API v2 credentials"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Content Calendar", "mode": "name" },
+        "columns": {
+          "values": {
+            "status": "published",
+            "published_at": "={{ $now.toISO() }}"
+          }
+        }
+      },
+      "id": "sheets-update",
+      "name": "Mark as Published",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#content",
+        "text": "✅ *Content Published!*\n📝 Topic: {{ $('Get Next Content Topic').item.json.topic }}\n🔗 LinkedIn + Twitter posted\n⏰ {{ $now.format('yyyy-MM-dd HH:mm') }}"
+      },
+      "id": "slack-notify",
+      "name": "Slack - Content Published",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1140, 500]
+    }
+  ],
+  "connections": {
+    "Schedule - Weekdays 9AM": { "main": [[{ "node": "Get Next Content Topic", "type": "main", "index": 0 }]] },
+    "Get Next Content Topic": {
+      "main": [[
+        { "node": "AI - Write LinkedIn Post", "type": "main", "index": 0 },
+        { "node": "AI - Write Twitter Thread", "type": "main", "index": 0 }
+      ]]
+    },
+    "AI - Write LinkedIn Post": { "main": [[{ "node": "Publish to LinkedIn", "type": "main", "index": 0 }]] },
+    "AI - Write Twitter Thread": { "main": [[{ "node": "Publish to X/Twitter", "type": "main", "index": 0 }]] },
+    "Publish to LinkedIn": { "main": [[{ "node": "Mark as Published", "type": "main", "index": 0 }]] },
+    "Publish to X/Twitter": { "main": [[{ "node": "Slack - Content Published", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "Reads topic from content calendar, generates platform-specific posts with AI (OpenAI), publishes to LinkedIn + Twitter, marks as done. Runs weekdays at 9AM.",
+    "author": "DiegoAutomates",
+    "tags": ["ai", "content", "social-media", "openai", "automation"]
+  }
+}

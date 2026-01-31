@@ -1,0 +1,149 @@
+{
+  "name": "E-Commerce Order Processing (Shopify → Fulfillment)",
+  "nodes": [
+    {
+      "parameters": {
+        "topic": "orders/create",
+        "options": {}
+      },
+      "id": "shopify-trigger",
+      "name": "Shopify - New Order",
+      "type": "n8n-nodes-base.shopifyTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.total_price }}",
+              "operation": "largerEqual",
+              "value2": 100
+            }
+          ]
+        }
+      },
+      "id": "if-highvalue",
+      "name": "High Value Order? (≥$100)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Order Confirmed #{{ $json.order_number }} 🎉",
+        "emailType": "html",
+        "message": "<h2>Thank you for your order!</h2><p>Hi {{ $json.customer.first_name }},</p><p>We've received your order <strong>#{{ $json.order_number }}</strong> for <strong>${{ $json.total_price }}</strong>.</p><h3>Items:</h3><ul>{{#each line_items}}<li>{{ this.title }} x{{ this.quantity }} — ${{ this.price }}</li>{{/each}}</ul><p>We'll notify you when your order ships.</p><p>Best,<br>The Store Team</p>"
+      },
+      "id": "email-confirm",
+      "name": "Send Confirmation Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Orders", "mode": "name" },
+        "columns": {
+          "values": {
+            "order_number": "={{ $json.order_number }}",
+            "customer_name": "={{ $json.customer.first_name }} {{ $json.customer.last_name }}",
+            "email": "={{ $json.email }}",
+            "total": "={{ $json.total_price }}",
+            "items": "={{ $json.line_items.map(i => i.title).join(', ') }}",
+            "date": "={{ $now.toISO() }}",
+            "status": "confirmed"
+          }
+        }
+      },
+      "id": "sheets-log",
+      "name": "Log Order to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "channel": "#orders",
+        "text": "🛒 *New Order #{{ $json.order_number }}*\n💰 Total: ${{ $json.total_price }}\n👤 {{ $json.customer.first_name }} {{ $json.customer.last_name }}\n📦 Items: {{ $json.line_items.map(i => i.title).join(', ') }}\n🏷️ {{ $json.total_price >= 100 ? '⭐ HIGH VALUE' : 'Standard' }}"
+      },
+      "id": "slack-order",
+      "name": "Slack - New Order Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "message",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a customer service expert. Write a brief, warm, personalized thank-you message."
+            },
+            {
+              "role": "user",
+              "content": "Write a short personalized thank-you for {{ $json.customer.first_name }} who just bought {{ $json.line_items.map(i => i.title).join(' and ') }} for ${{ $json.total_price }}. Max 2 sentences. Be genuine, not robotic."
+            }
+          ]
+        }
+      },
+      "id": "openai-thankyou",
+      "name": "AI - Personal Thank You (VIP)",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.8,
+      "position": [900, 100],
+      "notes": "Only triggers for high-value orders (≥$100)"
+    },
+    {
+      "parameters": {
+        "url": "https://api.your-fulfillment.com/orders",
+        "method": "POST",
+        "body": {
+          "order_id": "={{ $json.order_number }}",
+          "shipping_address": "={{ $json.shipping_address }}",
+          "items": "={{ $json.line_items }}"
+        },
+        "options": {}
+      },
+      "id": "http-fulfillment",
+      "name": "Send to Fulfillment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "notes": "Connect to your fulfillment provider (ShipStation, ShipBob, etc.)"
+    }
+  ],
+  "connections": {
+    "Shopify - New Order": { "main": [[{ "node": "High Value Order? (≥$100)", "type": "main", "index": 0 }]] },
+    "High Value Order? (≥$100)": {
+      "main": [
+        [
+          { "node": "Send Confirmation Email", "type": "main", "index": 0 },
+          { "node": "Log Order to Sheets", "type": "main", "index": 0 },
+          { "node": "AI - Personal Thank You (VIP)", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Send Confirmation Email", "type": "main", "index": 0 },
+          { "node": "Log Order to Sheets", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Send Confirmation Email": { "main": [[{ "node": "Slack - New Order Alert", "type": "main", "index": 0 }]] },
+    "Log Order to Sheets": { "main": [[{ "node": "Slack - New Order Alert", "type": "main", "index": 0 }]] },
+    "Slack - New Order Alert": { "main": [[{ "node": "Send to Fulfillment API", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "Processes Shopify orders automatically: sends confirmation email, logs to Google Sheets, notifies Slack, generates AI thank-you for VIP orders (≥$100), forwards to fulfillment API.",
+    "author": "DiegoAutomates",
+    "tags": ["ecommerce", "shopify", "orders", "ai", "fulfillment"]
+  }
+}

@@ -1,0 +1,290 @@
+{
+  "name": "AI Customer Support Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "customer-support",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [{ "name": "X-Powered-By", "value": "n8n-ai-support" }]
+          }
+        }
+      },
+      "id": "webhook-cs-1",
+      "name": "Webhook - Incoming Ticket",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{ $json.message }}", "operation": "isNotEmpty" },
+            { "value1": "={{ $json.customer_email }}", "operation": "isNotEmpty" }
+          ]
+        }
+      },
+      "id": "if-cs-validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "completions",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a support ticket classifier. Analyze the customer message and return a JSON object with exactly these fields:\n- urgency: \"low\", \"medium\", \"high\", or \"critical\"\n- category: one of \"billing\", \"technical\", \"account\", \"feature_request\", \"bug_report\", \"general\"\n- sentiment: \"positive\", \"neutral\", \"negative\", or \"angry\"\n- is_faq: true if this is a common/simple question, false otherwise\n- faq_topic: if is_faq is true, the topic (e.g., \"password_reset\", \"pricing\", \"hours\", \"refund_policy\"), else null\n\nReturn ONLY valid JSON, no markdown."
+            },
+            {
+              "role": "user",
+              "content": "=Customer: {{ $json.customer_name }} ({{ $json.customer_email }})\nSubject: {{ $json.subject }}\nMessage: {{ $json.message }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 300
+        }
+      },
+      "id": "openai-cs-classify",
+      "name": "OpenAI - Classify Ticket",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.6,
+      "position": [680, 400],
+      "notes": "Classifies urgency, category, sentiment, and FAQ detection"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst originalTicket = $('Webhook - Incoming Ticket').first().json;\n\nlet classification;\ntry {\n  const content = input.message?.content || input.choices?.[0]?.message?.content || '{}';\n  classification = JSON.parse(content);\n} catch (e) {\n  classification = { urgency: 'medium', category: 'general', sentiment: 'neutral', is_faq: false, faq_topic: null };\n}\n\nreturn [{\n  json: {\n    ...originalTicket,\n    ticket_id: `TKT-${Date.now()}`,\n    classified_at: new Date().toISOString(),\n    urgency: classification.urgency || 'medium',\n    category: classification.category || 'general',\n    sentiment: classification.sentiment || 'neutral',\n    is_faq: classification.is_faq || false,\n    faq_topic: classification.faq_topic || null\n  }\n}];"
+      },
+      "id": "code-cs-parse",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "={{ $json.is_faq }}", "value2": true }
+          ]
+        }
+      },
+      "id": "if-cs-faq",
+      "name": "Is FAQ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "completions",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a friendly, professional customer support agent. Write a helpful auto-reply for a FAQ question. Be concise, warm, and include actionable steps. Format as clean HTML for email. Sign off as 'Support Team'. Keep it under 150 words."
+            },
+            {
+              "role": "user",
+              "content": "=FAQ Topic: {{ $json.faq_topic }}\nCustomer Name: {{ $json.customer_name }}\nOriginal Message: {{ $json.message }}"
+            }
+          ]
+        },
+        "options": { "temperature": 0.5, "maxTokens": 500 }
+      },
+      "id": "openai-cs-faq-reply",
+      "name": "OpenAI - FAQ Auto-Reply",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.6,
+      "position": [1340, 260],
+      "notes": "Generates instant auto-reply for common questions"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Parse Classification').first().json.customer_email }}",
+        "subject": "=Re: {{ $('Parse Classification').first().json.subject }} [{{ $('Parse Classification').first().json.ticket_id }}]",
+        "emailType": "html",
+        "message": "={{ $json.message?.content || $json.choices?.[0]?.message?.content || '<p>Thank you for contacting us. We will get back to you shortly.</p>' }}",
+        "options": {}
+      },
+      "id": "email-cs-faq",
+      "name": "Send FAQ Auto-Reply",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1560, 260]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "completions",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a customer support assistant. Draft a professional reply to this support ticket. Be empathetic and solution-oriented. Include a greeting, acknowledgment of the issue, proposed next steps, and a warm sign-off. Format as clean HTML for email. The support agent will review before sending."
+            },
+            {
+              "role": "user",
+              "content": "=Category: {{ $json.category }}\nUrgency: {{ $json.urgency }}\nSentiment: {{ $json.sentiment }}\nCustomer: {{ $json.customer_name }}\nSubject: {{ $json.subject }}\nMessage: {{ $json.message }}"
+            }
+          ]
+        },
+        "options": { "temperature": 0.6, "maxTokens": 800 }
+      },
+      "id": "openai-cs-draft",
+      "name": "OpenAI - Draft Response",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.6,
+      "position": [1340, 540],
+      "notes": "Drafts response for human review (non-FAQ tickets)"
+    },
+    {
+      "parameters": {
+        "channel": "#support-queue",
+        "text": "=🎫 *New Support Ticket* [{{ $('Parse Classification').first().json.ticket_id }}]\n\n👤 *Customer:* {{ $('Parse Classification').first().json.customer_name }} ({{ $('Parse Classification').first().json.customer_email }})\n📋 *Subject:* {{ $('Parse Classification').first().json.subject }}\n🏷️ *Category:* {{ $('Parse Classification').first().json.category }}\n🚨 *Urgency:* {{ $('Parse Classification').first().json.urgency }}\n😊 *Sentiment:* {{ $('Parse Classification').first().json.sentiment }}\n\n💬 *Message:*\n> {{ $('Parse Classification').first().json.message }}\n\n✏️ *AI Draft Reply:*\n{{ $json.message?.content || $json.choices?.[0]?.message?.content || 'Draft generation failed' }}\n\n_Reply in thread to approve, edit, or reject._",
+        "otherOptions": {}
+      },
+      "id": "slack-cs-approval",
+      "name": "Slack - Send for Approval",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1560, 540],
+      "notes": "Agent reviews AI draft before sending to customer"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Support Tickets", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "values": [
+            { "column": "Ticket ID", "value": "={{ $('Parse Classification').first().json.ticket_id }}" },
+            { "column": "Date", "value": "={{ $('Parse Classification').first().json.classified_at }}" },
+            { "column": "Customer Name", "value": "={{ $('Parse Classification').first().json.customer_name }}" },
+            { "column": "Customer Email", "value": "={{ $('Parse Classification').first().json.customer_email }}" },
+            { "column": "Subject", "value": "={{ $('Parse Classification').first().json.subject }}" },
+            { "column": "Category", "value": "={{ $('Parse Classification').first().json.category }}" },
+            { "column": "Urgency", "value": "={{ $('Parse Classification').first().json.urgency }}" },
+            { "column": "Sentiment", "value": "={{ $('Parse Classification').first().json.sentiment }}" },
+            { "column": "Is FAQ", "value": "={{ $('Parse Classification').first().json.is_faq }}" },
+            { "column": "Status", "value": "={{ $('Parse Classification').first().json.is_faq ? 'Auto-Replied' : 'Pending Review' }}" }
+          ]
+        }
+      },
+      "id": "sheets-cs-log",
+      "name": "Google Sheets - Log Ticket",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"success\", \"ticket_id\": \"{{ $('Parse Classification').first().json.ticket_id }}\", \"auto_replied\": {{ $('Parse Classification').first().json.is_faq }} }"
+      },
+      "id": "respond-cs-ok",
+      "name": "Respond - Ticket Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"error\", \"message\": \"Missing required fields: message and customer_email\" }"
+      },
+      "id": "respond-cs-error",
+      "name": "Respond - Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "channel": "#support-alerts",
+        "text": "=⚠️ *Support Workflow Error*\nNode: {{ $json.node_name || 'Unknown' }}\nError: {{ $json.error_message || 'Unknown error' }}\nTicket Data: {{ JSON.stringify($json).substring(0, 500) }}",
+        "otherOptions": {}
+      },
+      "id": "slack-cs-error",
+      "name": "Slack - Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1780, 700]
+    }
+  ],
+  "connections": {
+    "Webhook - Incoming Ticket": {
+      "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]]
+    },
+    "Validate Input": {
+      "main": [
+        [{ "node": "OpenAI - Classify Ticket", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Validation Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenAI - Classify Ticket": {
+      "main": [[{ "node": "Parse Classification", "type": "main", "index": 0 }]]
+    },
+    "Parse Classification": {
+      "main": [[{ "node": "Is FAQ?", "type": "main", "index": 0 }]]
+    },
+    "Is FAQ?": {
+      "main": [
+        [{ "node": "OpenAI - FAQ Auto-Reply", "type": "main", "index": 0 }],
+        [{ "node": "OpenAI - Draft Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenAI - FAQ Auto-Reply": {
+      "main": [[{ "node": "Send FAQ Auto-Reply", "type": "main", "index": 0 }]]
+    },
+    "Send FAQ Auto-Reply": {
+      "main": [[{ "node": "Google Sheets - Log Ticket", "type": "main", "index": 0 }]]
+    },
+    "OpenAI - Draft Response": {
+      "main": [[{ "node": "Slack - Send for Approval", "type": "main", "index": 0 }]]
+    },
+    "Slack - Send for Approval": {
+      "main": [[{ "node": "Google Sheets - Log Ticket", "type": "main", "index": 0 }]]
+    },
+    "Google Sheets - Log Ticket": {
+      "main": [[{ "node": "Respond - Ticket Created", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "meta": {
+    "description": "AI-powered customer support bot that classifies tickets by urgency/category/sentiment, auto-replies to FAQs, drafts responses for complex issues, and routes to Slack for human approval. Full ticket logging in Google Sheets.",
+    "author": "DiegoAutomates",
+    "tags": ["customer-support", "ai", "chatbot", "automation", "helpdesk"]
+  },
+  "pinData": {
+    "Webhook - Incoming Ticket": [
+      {
+        "json": {
+          "customer_name": "Jane Smith",
+          "customer_email": "jane@example.com",
+          "subject": "Can't reset my password",
+          "message": "Hi, I've been trying to reset my password for the last hour but I'm not receiving the reset email. Can you help?",
+          "source": "contact_form"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "name": "Lead Capture → CRM + Auto Email",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-capture",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook - New Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.email }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Has Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "create",
+        "email": "={{ $json.email }}",
+        "additionalFields": {
+          "firstName": "={{ $json.first_name }}",
+          "lastName": "={{ $json.last_name }}",
+          "phone": "={{ $json.phone }}",
+          "company": "={{ $json.company }}"
+        }
+      },
+      "id": "hubspot-1",
+      "name": "HubSpot - Create Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2,
+      "position": [680, 200],
+      "notes": "Replace with your CRM: Salesforce, Airtable, Notion, etc."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Leads", "mode": "name" },
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        }
+      },
+      "id": "sheets-1",
+      "name": "Google Sheets - Log Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "Thanks for reaching out, {{ $json.first_name }}!",
+        "emailType": "html",
+        "message": "<h2>Hi {{ $json.first_name }},</h2><p>Thanks for your interest! We received your inquiry and will get back to you within 24 hours.</p><p>In the meantime, feel free to check out our <a href='https://example.com'>latest resources</a>.</p><p>Best regards,<br>The Team</p>",
+        "options": {}
+      },
+      "id": "email-1",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#sales-leads",
+        "text": "🚀 *New Lead!*\n• Name: {{ $json.first_name }} {{ $json.last_name }}\n• Email: {{ $json.email }}\n• Company: {{ $json.company }}\n• Source: {{ $json.source }}",
+        "otherOptions": {}
+      },
+      "id": "slack-1",
+      "name": "Slack - Notify Sales Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"success\", \"message\": \"Lead captured\" }"
+      },
+      "id": "respond-1",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - New Lead": { "main": [[{ "node": "Has Email?", "type": "main", "index": 0 }]] },
+    "Has Email?": {
+      "main": [
+        [
+          { "node": "HubSpot - Create Contact", "type": "main", "index": 0 },
+          { "node": "Google Sheets - Log Lead", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Respond OK", "type": "main", "index": 0 }]
+      ]
+    },
+    "HubSpot - Create Contact": { "main": [[{ "node": "Send Welcome Email", "type": "main", "index": 0 }]] },
+    "Google Sheets - Log Lead": { "main": [[{ "node": "Slack - Notify Sales Team", "type": "main", "index": 0 }]] },
+    "Send Welcome Email": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] },
+    "Slack - Notify Sales Team": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "Captures leads from any form/webhook, creates CRM contact, logs to Google Sheets, sends welcome email, and notifies sales team on Slack. Fully customizable.",
+    "author": "DiegoAutomates",
+    "tags": ["lead-capture", "crm", "automation", "sales"]
+  }
+}
