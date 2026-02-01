@@ -1,0 +1,342 @@
+{
+  "name": "Hotel Review Monitor & AI Response Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000001",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.review_source_url }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000002",
+      "name": "HTTP - Fetch Reviews",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse reviews from fetched HTML/JSON\nconst items = $input.all();\nconst reviews = [];\n\nfor (const item of items) {\n  const body = item.json.data || item.json.body || '';\n  \n  // Extract review data (customize regex per platform)\n  // This handles JSON API responses from review aggregators\n  if (typeof body === 'object' && Array.isArray(body.reviews)) {\n    for (const r of body.reviews) {\n      reviews.push({\n        json: {\n          reviewer: r.author || r.reviewer_name || 'Guest',\n          rating: r.rating || r.stars || 0,\n          text: r.text || r.comment || r.review_text || '',\n          date: r.date || r.published_date || new Date().toISOString(),\n          platform: r.platform || 'Unknown',\n          language: r.language || 'en',\n          stay_type: r.stay_type || 'leisure',\n          room_type: r.room_type || ''\n        }\n      });\n    }\n  }\n}\n\n// Filter: only new reviews (last 24h)\nconst cutoff = Date.now() - 24 * 60 * 60 * 1000;\nconst newReviews = reviews.filter(r => {\n  const d = new Date(r.json.date).getTime();\n  return d > cutoff;\n});\n\nreturn newReviews.length > 0 ? newReviews : [{ json: { _skip: true, message: 'No new reviews' } }];"
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000003",
+      "name": "Code - Parse Reviews",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-skip",
+              "leftValue": "={{ $json._skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notTrue"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000004",
+      "name": "Filter - Has Reviews",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.rating }}",
+              "operation": "smallerEqual",
+              "value2": 3
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000005",
+      "name": "IF - Negative Review",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Guest Relations Manager at a premium Swiss hotel. Generate a professional, empathetic response to this guest review.\n\nReview Details:\n- Guest: {{ $json.reviewer }}\n- Rating: {{ $json.rating }}/5\n- Platform: {{ $json.platform }}\n- Review: {{ $json.text }}\n- Stay type: {{ $json.stay_type }}\n- Room: {{ $json.room_type }}\n\nIMPORTANT RULES:\n1. Respond in the SAME LANGUAGE as the review ({{ $json.language }})\n2. For negative reviews (≤3 stars): Acknowledge specific concerns, apologize sincerely, offer concrete resolution, invite direct contact\n3. For positive reviews (≥4 stars): Thank warmly, reference specific compliments, invite return visit\n4. Keep professional Swiss hospitality tone — warm but not overly casual\n5. Include the guest's name\n6. Max 150 words\n7. Sign as 'Guest Relations Team'\n\nGenerate ONLY the response text, no headers or explanations."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 300
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000006",
+      "name": "OpenAI - Generate Response (Negative)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [1320, 200]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Guest Relations Manager at a premium Swiss hotel. Generate a warm, professional response to this positive guest review.\n\nReview Details:\n- Guest: {{ $json.reviewer }}\n- Rating: {{ $json.rating }}/5\n- Platform: {{ $json.platform }}\n- Review: {{ $json.text }}\n- Stay type: {{ $json.stay_type }}\n- Room: {{ $json.room_type }}\n\nRULES:\n1. Respond in the SAME LANGUAGE as the review ({{ $json.language }})\n2. Thank warmly and reference specific compliments from the review\n3. Mention seasonal highlights or upcoming events if relevant\n4. Invite them back with genuine enthusiasm\n5. Professional Swiss hospitality tone\n6. Include the guest's name\n7. Max 120 words\n8. Sign as 'Guest Relations Team'\n\nGenerate ONLY the response text."
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 250
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000007",
+      "name": "OpenAI - Generate Response (Positive)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [1320, 420]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Guest": "={{ $json.reviewer }}",
+            "Rating": "={{ $json.rating }}",
+            "Platform": "={{ $json.platform }}",
+            "Review": "={{ $json.text }}",
+            "AI Response": "={{ $json.ai_response }}",
+            "Status": "Draft",
+            "Language": "={{ $json.language }}",
+            "Sentiment": "={{ $json.rating <= 3 ? 'Negative' : 'Positive' }}"
+          }
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000008",
+      "name": "Google Sheets - Log Review",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1760, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#reviews",
+        "text": "=🏨 *New {{ $json.rating <= 3 ? '⚠️ Negative' : '✅ Positive' }} Review* ({{ $json.rating }}/5)\n\n*Guest:* {{ $json.reviewer }}\n*Platform:* {{ $json.platform }}\n*Language:* {{ $json.language }}\n\n> {{ $json.text.substring(0, 300) }}{{ $json.text.length > 300 ? '...' : '' }}\n\n📝 *AI Draft Response:*\n{{ $json.ai_response }}\n\n_Status: Draft — Review and post manually_",
+        "otherOptions": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000009",
+      "name": "Slack - Review Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1980, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.rating }}",
+              "operation": "smallerEqual",
+              "value2": 2
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000010",
+      "name": "IF - Critical (≤2 stars)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2200, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "reviews@hotel.com",
+        "toEmail": "gm@hotel.com",
+        "subject": "=🚨 URGENT: Critical Review from {{ $json.reviewer }} ({{ $json.rating }}/5 on {{ $json.platform }})",
+        "emailType": "html",
+        "html": "=<h2>Critical Review Alert</h2>\n<p><strong>Guest:</strong> {{ $json.reviewer }}</p>\n<p><strong>Rating:</strong> {{ $json.rating }}/5</p>\n<p><strong>Platform:</strong> {{ $json.platform }}</p>\n<p><strong>Review:</strong></p>\n<blockquote>{{ $json.text }}</blockquote>\n<h3>AI Draft Response:</h3>\n<p>{{ $json.ai_response }}</p>\n<p><em>Please review and post within 24 hours. Negative reviews responded to within 24h have 33% higher chance of being updated.</em></p>",
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000011",
+      "name": "Email - Critical Alert to GM",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [2420, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge AI response back into review data\nconst items = $input.all();\nreturn items.map(item => ({\n  json: {\n    ...item.json,\n    ai_response: item.json.message?.content || item.json.text || 'Response generation failed',\n    processed_at: new Date().toISOString()\n  }\n}));"
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000012",
+      "name": "Code - Merge Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000013",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [220, 520]
+    },
+    {
+      "parameters": {
+        "channel": "#reviews",
+        "text": "=❌ *Review Monitor Error*\n{{ $json.execution?.error?.message || 'Unknown error' }}\nExecution: {{ $json.execution?.id }}",
+        "otherOptions": {}
+      },
+      "id": "a1b2c3d4-1111-4aaa-bbbb-000000000014",
+      "name": "Slack - Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [440, 520]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          { "node": "HTTP - Fetch Reviews", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "HTTP - Fetch Reviews": {
+      "main": [
+        [
+          { "node": "Code - Parse Reviews", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Code - Parse Reviews": {
+      "main": [
+        [
+          { "node": "Filter - Has Reviews", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Filter - Has Reviews": {
+      "main": [
+        [
+          { "node": "IF - Negative Review", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF - Negative Review": {
+      "main": [
+        [
+          { "node": "OpenAI - Generate Response (Negative)", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "OpenAI - Generate Response (Positive)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "OpenAI - Generate Response (Negative)": {
+      "main": [
+        [
+          { "node": "Code - Merge Response", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "OpenAI - Generate Response (Positive)": {
+      "main": [
+        [
+          { "node": "Code - Merge Response", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Code - Merge Response": {
+      "main": [
+        [
+          { "node": "Google Sheets - Log Review", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Google Sheets - Log Review": {
+      "main": [
+        [
+          { "node": "Slack - Review Alert", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Slack - Review Alert": {
+      "main": [
+        [
+          { "node": "IF - Critical (≤2 stars)", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF - Critical (≤2 stars)": {
+      "main": [
+        [
+          { "node": "Email - Critical Alert to GM", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          { "node": "Slack - Error Alert", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "category": "hospitality",
+    "complexity": "advanced",
+    "suggestedPrice": 49,
+    "description": "Monitors hotel reviews across platforms every 6 hours. AI generates multilingual response drafts matching the review language. Negative reviews trigger Slack alerts; critical reviews (≤2 stars) send urgent emails to the GM. All reviews + AI responses logged to Google Sheets for tracking. Perfect for Swiss and international luxury hotels managing multi-platform reputation.",
+    "tags": ["hotel", "reviews", "AI", "hospitality", "reputation-management", "multilingual"]
+  }
+}
