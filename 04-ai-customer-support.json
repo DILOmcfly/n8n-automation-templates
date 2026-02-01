@@ -204,7 +204,7 @@
     {
       "parameters": {
         "channel": "#support-queue",
-        "text": "=🎫 *New Support Ticket* [{{ $('Parse Classification').first().json.ticket_id }}]\n\n👤 *Customer:* {{ $('Parse Classification').first().json.customer_name }} ({{ $('Parse Classification').first().json.customer_email }})\n📋 *Subject:* {{ $('Parse Classification').first().json.subject }}\n🏷️ *Category:* {{ $('Parse Classification').first().json.category }}\n🚨 *Urgency:* {{ $('Parse Classification').first().json.urgency }}\n😊 *Sentiment:* {{ $('Parse Classification').first().json.sentiment }}\n\n💬 *Message:*\n> {{ $('Parse Classification').first().json.message }}\n\n✏️ *AI Draft Reply:*\n{{ $json.message?.content || $json.choices?.[0]?.message?.content || 'Draft generation failed' }}\n\n_Reply in thread to approve, edit, or reject._",
+        "text": "=\ud83c\udfab *New Support Ticket* [{{ $('Parse Classification').first().json.ticket_id }}]\n\n\ud83d\udc64 *Customer:* {{ $('Parse Classification').first().json.customer_name }} ({{ $('Parse Classification').first().json.customer_email }})\n\ud83d\udccb *Subject:* {{ $('Parse Classification').first().json.subject }}\n\ud83c\udff7\ufe0f *Category:* {{ $('Parse Classification').first().json.category }}\n\ud83d\udea8 *Urgency:* {{ $('Parse Classification').first().json.urgency }}\n\ud83d\ude0a *Sentiment:* {{ $('Parse Classification').first().json.sentiment }}\n\n\ud83d\udcac *Message:*\n> {{ $('Parse Classification').first().json.message }}\n\n\u270f\ufe0f *AI Draft Reply:*\n{{ $json.message?.content || $json.choices?.[0]?.message?.content || 'Draft generation failed' }}\n\n_Reply in thread to approve, edit, or reject._",
         "otherOptions": {}
       },
       "id": "slack-cs-approval",
@@ -316,7 +316,7 @@
     {
       "parameters": {
         "channel": "#support-alerts",
-        "text": "=⚠️ *Support Workflow Error*\nNode: {{ $json.node_name || 'Unknown' }}\nError: {{ $json.error_message || 'Unknown error' }}\nTicket Data: {{ JSON.stringify($json).substring(0, 500) }}",
+        "text": "=\u26a0\ufe0f *Support Workflow Error*\nNode: {{ $json.node_name || 'Unknown' }}\nError: {{ $json.error_message || 'Unknown error' }}\nTicket Data: {{ JSON.stringify($json).substring(0, 500) }}",
         "otherOptions": {}
       },
       "id": "slack-cs-error",
@@ -325,6 +325,16 @@
       "typeVersion": 2.2,
       "position": [
         1780,
+        700
+      ]
+    },
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        1580,
         700
       ]
     }
@@ -448,6 +458,17 @@
         [
           {
             "node": "Respond - Ticket Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Slack - Error Alert",
             "type": "main",
             "index": 0
           }

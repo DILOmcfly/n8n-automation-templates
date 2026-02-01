@@ -67,7 +67,7 @@
         900,
         400
       ],
-      "notes": "Professional invoice HTML template — customize branding here"
+      "notes": "Professional invoice HTML template \u2014 customize branding here"
     },
     {
       "parameters": {
@@ -89,7 +89,7 @@
     {
       "parameters": {
         "sendTo": "={{ $json.customer_email }}",
-        "subject": "=Invoice {{ $json.invoice_number }} — {{ $json.currency }} {{ $json.total }}",
+        "subject": "=Invoice {{ $json.invoice_number }} \u2014 {{ $json.currency }} {{ $json.total }}",
         "emailType": "html",
         "message": "=<h2>Hi {{ $json.customer_name }},</h2><p>Please find your invoice <strong>{{ $json.invoice_number }}</strong> attached.</p><p><strong>Amount Due:</strong> {{ $json.currency }} {{ $json.total }}<br><strong>Due Date:</strong> {{ $json.due_date }}<br><strong>Payment Terms:</strong> {{ $json.payment_terms }}</p><p>If you have any questions about this invoice, please don't hesitate to reach out.</p><p>Thank you for your business!</p><p>Best regards,<br>Your Company Name</p>",
         "options": {
@@ -190,7 +190,7 @@
     {
       "parameters": {
         "channel": "#accounting",
-        "text": "=💰 *New Invoice Sent*\n\n📄 *Invoice:* {{ $json.invoice_number }}\n👤 *Customer:* {{ $json.customer_name }} ({{ $json.customer_email }})\n💵 *Amount:* {{ $json.currency }} {{ $json.total }}\n📅 *Due Date:* {{ $json.due_date }}\n📦 *Items:* {{ $json.items.length }} line item(s)\n\n✅ Invoice emailed to customer.",
+        "text": "=\ud83d\udcb0 *New Invoice Sent*\n\n\ud83d\udcc4 *Invoice:* {{ $json.invoice_number }}\n\ud83d\udc64 *Customer:* {{ $json.customer_name }} ({{ $json.customer_email }})\n\ud83d\udcb5 *Amount:* {{ $json.currency }} {{ $json.total }}\n\ud83d\udcc5 *Due Date:* {{ $json.due_date }}\n\ud83d\udce6 *Items:* {{ $json.items.length }} line item(s)\n\n\u2705 Invoice emailed to customer.",
         "otherOptions": {}
       },
       "id": "slack-inv-notify",
@@ -296,7 +296,7 @@
     {
       "parameters": {
         "channel": "#accounting",
-        "text": "=⏰ *Overdue Invoice Alert*\n\n{{ $json.overdue_count }} invoice(s) overdue (> 7 days)\n💸 *Total Outstanding:* {{ $json.currency }} {{ $json.total_overdue_amount }}\n\n{{ $json.invoices.map(inv => `• *${inv.number}* — ${inv.customer} (${inv.email})\\n  Amount: ${inv.total} | Due: ${inv.due_date} | *${inv.days_overdue} days overdue*`).join('\\n\\n') }}\n\n_Please follow up with these customers._",
+        "text": "=\u23f0 *Overdue Invoice Alert*\n\n{{ $json.overdue_count }} invoice(s) overdue (> 7 days)\n\ud83d\udcb8 *Total Outstanding:* {{ $json.currency }} {{ $json.total_overdue_amount }}\n\n{{ $json.invoices.map(inv => `\u2022 *${inv.number}* \u2014 ${inv.customer} (${inv.email})\\n  Amount: ${inv.total} | Due: ${inv.due_date} | *${inv.days_overdue} days overdue*`).join('\\n\\n') }}\n\n_Please follow up with these customers._",
         "otherOptions": {}
       },
       "id": "slack-inv-overdue",
@@ -368,7 +368,7 @@
     {
       "parameters": {
         "channel": "#accounting",
-        "text": "=📊 *Monthly Revenue Report — {{ $json.month }}*\n\n💰 *Total Revenue:* {{ $json.currency }} {{ $json.total_revenue }}\n📄 *Invoices Issued:* {{ $json.total_invoices }}\n✅ *Paid:* {{ $json.paid_count }} | ⏳ *Pending:* {{ $json.pending_count }}\n💵 *Avg Invoice Value:* {{ $json.currency }} {{ $json.avg_invoice_value }}\n🏛️ *Tax Collected:* {{ $json.currency }} {{ $json.total_tax }}\n📈 *Net Revenue:* {{ $json.currency }} {{ $json.net_revenue }}\n\n🏆 *Top Customers:* {{ $json.top_customers || 'None' }}\n\n_Auto-generated monthly summary_",
+        "text": "=\ud83d\udcca *Monthly Revenue Report \u2014 {{ $json.month }}*\n\n\ud83d\udcb0 *Total Revenue:* {{ $json.currency }} {{ $json.total_revenue }}\n\ud83d\udcc4 *Invoices Issued:* {{ $json.total_invoices }}\n\u2705 *Paid:* {{ $json.paid_count }} | \u23f3 *Pending:* {{ $json.pending_count }}\n\ud83d\udcb5 *Avg Invoice Value:* {{ $json.currency }} {{ $json.avg_invoice_value }}\n\ud83c\udfdb\ufe0f *Tax Collected:* {{ $json.currency }} {{ $json.total_tax }}\n\ud83d\udcc8 *Net Revenue:* {{ $json.currency }} {{ $json.net_revenue }}\n\n\ud83c\udfc6 *Top Customers:* {{ $json.top_customers || 'None' }}\n\n_Auto-generated monthly summary_",
         "otherOptions": {}
       },
       "id": "slack-inv-monthly",
@@ -397,7 +397,7 @@
     {
       "parameters": {
         "channel": "#accounting",
-        "text": "=⚠️ *Invoicing Error*\nNode: {{ $json.node_name || 'Unknown' }}\nError: {{ $json.error_message || 'Check execution log' }}\nTime: {{ new Date().toISOString() }}",
+        "text": "=\u26a0\ufe0f *Invoicing Error*\nNode: {{ $json.node_name || 'Unknown' }}\nError: {{ $json.error_message || 'Check execution log' }}\nTime: {{ new Date().toISOString() }}",
         "otherOptions": {}
       },
       "id": "slack-inv-error",
@@ -406,6 +406,16 @@
       "typeVersion": 2.2,
       "position": [
         1340,
+        560
+      ]
+    },
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        1140,
         560
       ]
     }
@@ -583,6 +593,17 @@
           }
         ]
       ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Slack - Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -610,12 +631,12 @@
           "customer_address": "456 Enterprise Ave, Suite 200, Business City, CA 90210",
           "items": [
             {
-              "description": "n8n Workflow Setup — Lead Capture",
+              "description": "n8n Workflow Setup \u2014 Lead Capture",
               "quantity": 1,
               "unit_price": 350
             },
             {
-              "description": "Custom Integration — Shopify + CRM",
+              "description": "Custom Integration \u2014 Shopify + CRM",
               "quantity": 1,
               "unit_price": 500
             },

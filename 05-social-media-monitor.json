@@ -4,14 +4,22 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
         }
       },
       "id": "schedule-sm-1",
       "name": "Schedule - Every 6 Hours",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 400]
+      "position": [
+        240,
+        400
+      ]
     },
     {
       "parameters": {
@@ -21,7 +29,10 @@
       "name": "Brand Config",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 400],
+      "position": [
+        460,
+        400
+      ],
       "notes": "Configure your brand name, keywords, and RSS feeds here"
     },
     {
@@ -33,7 +44,10 @@
       "name": "RSS Feed Read",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1,
-      "position": [680, 400]
+      "position": [
+        680,
+        400
+      ]
     },
     {
       "parameters": {
@@ -43,13 +57,19 @@
       "name": "Filter Recent Mentions",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "boolean": [
-            { "value1": "={{ $json.no_mentions }}", "value2": false }
+            {
+              "value1": "={{ $json.no_mentions }}",
+              "value2": false
+            }
           ]
         }
       },
@@ -57,7 +77,10 @@
       "name": "Has Mentions?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1120, 400]
+      "position": [
+        1120,
+        400
+      ]
     },
     {
       "parameters": {
@@ -76,13 +99,19 @@
             }
           ]
         },
-        "options": { "temperature": 0.1, "maxTokens": 400 }
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 400
+        }
       },
       "id": "openai-sm-sentiment",
       "name": "OpenAI - Sentiment Analysis",
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1.6,
-      "position": [1340, 300],
+      "position": [
+        1340,
+        300
+      ],
       "notes": "Analyzes sentiment and impact of each mention"
     },
     {
@@ -93,13 +122,19 @@
       "name": "Merge Analysis",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 300]
+      "position": [
+        1560,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "boolean": [
-            { "value1": "={{ $json.is_negative }}", "value2": true }
+            {
+              "value1": "={{ $json.is_negative }}",
+              "value2": true
+            }
           ]
         }
       },
@@ -107,39 +142,83 @@
       "name": "Is Negative?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1780, 300]
+      "position": [
+        1780,
+        300
+      ]
     },
     {
       "parameters": {
         "channel": "#brand-alerts",
-        "text": "=🚨 *Negative Brand Mention Detected!*\n\n📰 *Title:* {{ $json.title }}\n🔗 *Link:* {{ $json.link }}\n📡 *Source:* {{ $json.source }}\n📅 *Published:* {{ $json.published }}\n\n😠 *Sentiment:* {{ $json.sentiment }} ({{ $json.sentiment_score }})\n💥 *Impact:* {{ $json.potential_impact }}\n📝 *Summary:* {{ $json.summary }}\n🎯 *Suggested Action:* {{ $json.suggested_action }}\n🏷️ *Topics:* {{ $json.topics?.join(', ') || 'N/A' }}\n\n_Please review and take action._",
+        "text": "=\ud83d\udea8 *Negative Brand Mention Detected!*\n\n\ud83d\udcf0 *Title:* {{ $json.title }}\n\ud83d\udd17 *Link:* {{ $json.link }}\n\ud83d\udce1 *Source:* {{ $json.source }}\n\ud83d\udcc5 *Published:* {{ $json.published }}\n\n\ud83d\ude20 *Sentiment:* {{ $json.sentiment }} ({{ $json.sentiment_score }})\n\ud83d\udca5 *Impact:* {{ $json.potential_impact }}\n\ud83d\udcdd *Summary:* {{ $json.summary }}\n\ud83c\udfaf *Suggested Action:* {{ $json.suggested_action }}\n\ud83c\udff7\ufe0f *Topics:* {{ $json.topics?.join(', ') || 'N/A' }}\n\n_Please review and take action._",
         "otherOptions": {}
       },
       "id": "slack-sm-alert",
       "name": "Slack - Negative Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [2000, 200],
+      "position": [
+        2000,
+        200
+      ],
       "notes": "Immediate alert for negative mentions"
     },
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Brand Mentions", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Brand Mentions",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "values": [
-            { "column": "Date", "value": "={{ $json.analyzed_at }}" },
-            { "column": "Title", "value": "={{ $json.title }}" },
-            { "column": "Source", "value": "={{ $json.source }}" },
-            { "column": "Link", "value": "={{ $json.link }}" },
-            { "column": "Sentiment", "value": "={{ $json.sentiment }}" },
-            { "column": "Score", "value": "={{ $json.sentiment_score }}" },
-            { "column": "Impact", "value": "={{ $json.potential_impact }}" },
-            { "column": "Topics", "value": "={{ $json.topics?.join(', ') || '' }}" },
-            { "column": "Action", "value": "={{ $json.suggested_action }}" },
-            { "column": "Summary", "value": "={{ $json.summary }}" }
+            {
+              "column": "Date",
+              "value": "={{ $json.analyzed_at }}"
+            },
+            {
+              "column": "Title",
+              "value": "={{ $json.title }}"
+            },
+            {
+              "column": "Source",
+              "value": "={{ $json.source }}"
+            },
+            {
+              "column": "Link",
+              "value": "={{ $json.link }}"
+            },
+            {
+              "column": "Sentiment",
+              "value": "={{ $json.sentiment }}"
+            },
+            {
+              "column": "Score",
+              "value": "={{ $json.sentiment_score }}"
+            },
+            {
+              "column": "Impact",
+              "value": "={{ $json.potential_impact }}"
+            },
+            {
+              "column": "Topics",
+              "value": "={{ $json.topics?.join(', ') || '' }}"
+            },
+            {
+              "column": "Action",
+              "value": "={{ $json.suggested_action }}"
+            },
+            {
+              "column": "Summary",
+              "value": "={{ $json.summary }}"
+            }
           ]
         }
       },
@@ -147,32 +226,54 @@
       "name": "Google Sheets - Log Mention",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [2000, 400]
+      "position": [
+        2000,
+        400
+      ]
     },
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "cronExpression", "expression": "0 9 * * 1" }]
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
         }
       },
       "id": "schedule-sm-weekly",
       "name": "Weekly Report Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 700]
+      "position": [
+        240,
+        700
+      ]
     },
     {
       "parameters": {
         "operation": "read",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Brand Mentions", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Brand Mentions",
+          "mode": "name"
+        },
         "options": {}
       },
       "id": "sheets-sm-read",
       "name": "Google Sheets - Read Mentions",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [460, 700]
+      "position": [
+        460,
+        700
+      ]
     },
     {
       "parameters": {
@@ -182,75 +283,197 @@
       "name": "Generate Weekly Report",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 700]
+      "position": [
+        680,
+        700
+      ]
     },
     {
       "parameters": {
         "channel": "#brand-reports",
-        "text": "=📊 *Weekly Brand Monitor Report*\n📅 Period: {{ $json.period }}\n\n📈 *Total Mentions:* {{ $json.total_mentions }}\n😊 *Avg Sentiment Score:* {{ $json.avg_sentiment_score }} / 1.0\n\n*Sentiment Breakdown:*\n✅ Positive: {{ $json.sentiment_breakdown.positive || 0 }}\n😐 Neutral: {{ $json.sentiment_breakdown.neutral || 0 }}\n⚠️ Negative: {{ $json.sentiment_breakdown.negative || 0 }}\n🔴 Very Negative: {{ $json.sentiment_breakdown.very_negative || 0 }}\n\n📡 *Top Sources:* {{ $json.top_sources || 'None' }}\n\n_Auto-generated by n8n Brand Monitor_",
+        "text": "=\ud83d\udcca *Weekly Brand Monitor Report*\n\ud83d\udcc5 Period: {{ $json.period }}\n\n\ud83d\udcc8 *Total Mentions:* {{ $json.total_mentions }}\n\ud83d\ude0a *Avg Sentiment Score:* {{ $json.avg_sentiment_score }} / 1.0\n\n*Sentiment Breakdown:*\n\u2705 Positive: {{ $json.sentiment_breakdown.positive || 0 }}\n\ud83d\ude10 Neutral: {{ $json.sentiment_breakdown.neutral || 0 }}\n\u26a0\ufe0f Negative: {{ $json.sentiment_breakdown.negative || 0 }}\n\ud83d\udd34 Very Negative: {{ $json.sentiment_breakdown.very_negative || 0 }}\n\n\ud83d\udce1 *Top Sources:* {{ $json.top_sources || 'None' }}\n\n_Auto-generated by n8n Brand Monitor_",
         "otherOptions": {}
       },
       "id": "slack-sm-report",
       "name": "Slack - Weekly Report",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [900, 700]
+      "position": [
+        900,
+        700
+      ]
     },
     {
       "parameters": {
         "channel": "#brand-alerts",
-        "text": "=⚠️ *Brand Monitor Error*\nNode: {{ $json.node_name || 'Unknown' }}\nError: {{ $json.error_message || 'Check execution log' }}\nTime: {{ new Date().toISOString() }}",
+        "text": "=\u26a0\ufe0f *Brand Monitor Error*\nNode: {{ $json.node_name || 'Unknown' }}\nError: {{ $json.error_message || 'Check execution log' }}\nTime: {{ new Date().toISOString() }}",
         "otherOptions": {}
       },
       "id": "slack-sm-error",
       "name": "Slack - Error Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [1340, 700]
+      "position": [
+        1340,
+        700
+      ]
+    },
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        700
+      ]
     }
   ],
   "connections": {
     "Schedule - Every 6 Hours": {
-      "main": [[{ "node": "Brand Config", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Brand Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Brand Config": {
-      "main": [[{ "node": "RSS Feed Read", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "RSS Feed Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "RSS Feed Read": {
-      "main": [[{ "node": "Filter Recent Mentions", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Filter Recent Mentions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Filter Recent Mentions": {
-      "main": [[{ "node": "Has Mentions?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Has Mentions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Has Mentions?": {
       "main": [
-        [{ "node": "OpenAI - Sentiment Analysis", "type": "main", "index": 0 }],
+        [
+          {
+            "node": "OpenAI - Sentiment Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     },
     "OpenAI - Sentiment Analysis": {
-      "main": [[{ "node": "Merge Analysis", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Merge Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Merge Analysis": {
-      "main": [[{ "node": "Is Negative?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Is Negative?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Is Negative?": {
       "main": [
         [
-          { "node": "Slack - Negative Alert", "type": "main", "index": 0 },
-          { "node": "Google Sheets - Log Mention", "type": "main", "index": 0 }
+          {
+            "node": "Slack - Negative Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Log Mention",
+            "type": "main",
+            "index": 0
+          }
         ],
-        [{ "node": "Google Sheets - Log Mention", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Google Sheets - Log Mention",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Weekly Report Trigger": {
-      "main": [[{ "node": "Google Sheets - Read Mentions", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Read Mentions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Google Sheets - Read Mentions": {
-      "main": [[{ "node": "Generate Weekly Report", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Generate Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Generate Weekly Report": {
-      "main": [[{ "node": "Slack - Weekly Report", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Slack - Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Slack - Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -260,6 +483,12 @@
   "meta": {
     "description": "Monitors brand mentions across RSS feeds and web sources every 6 hours. Uses AI sentiment analysis, alerts on negative mentions via Slack, logs all mentions to Google Sheets with metrics, and generates automated weekly reports.",
     "author": "DiegoAutomates",
-    "tags": ["social-media", "brand-monitoring", "sentiment-analysis", "ai", "automation"]
+    "tags": [
+      "social-media",
+      "brand-monitoring",
+      "sentiment-analysis",
+      "ai",
+      "automation"
+    ]
   }
 }
