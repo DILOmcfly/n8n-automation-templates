@@ -1,34 +1,64 @@
-# N8N Workflow Templates — Fiverr Portfolio
+# 🤖 N8N Workflow Templates — Production-Ready Collection
 
-Professional N8N automation workflows for the AuraHub Fiverr gig. Each workflow is a complete, functional JSON export ready to import into any N8N instance.
+> 11 automation templates for businesses. AI agents, lead gen, CRM, content, WhatsApp, and more.
+> Built by [DILOmcfly](https://github.com/DILOmcfly) | Powered by Aura ✦
 
-## Workflows
+[![n8n](https://img.shields.io/badge/n8n-Automation-orange)](https://n8n.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Templates](https://img.shields.io/badge/Templates-11-green)]()
 
-| # | Workflow | Nodes | Key Integrations | Use Case |
-|---|---------|-------|------------------|----------|
-| 01 | **Lead Capture → CRM → AI Follow-up** | 8 | Webhook, Google Sheets, OpenAI, Gmail | Capture leads, enrich with AI, send personalized emails |
-| 02 | **AI Email Responder** | 7 | Gmail Trigger, OpenAI, Google Sheets | GPT reads incoming emails and drafts intelligent responses |
-| 03 | **Social Media Auto-Publisher** | 8 | RSS/Webhook, OpenAI, Twitter, LinkedIn | Write once, publish everywhere with AI optimization |
-| 04 | **WhatsApp Appointment Booker** | 9 | WhatsApp, OpenAI, Calendly, Google Sheets, Slack | AI chatbot that books appointments via WhatsApp |
-| 05 | **Content Repurposer** | 10 | Webhook, OpenAI, Twitter, LinkedIn, Gmail, Sheets | Turn blog posts into threads, posts, newsletters, scripts |
+## 📦 Templates
 
-## How to Use
+### AI & Automation
+| # | Template | File | Key Integrations |
+|---|----------|------|-------------|
+| 1 | 🤖 **AI Customer Support Agent** | `04-ai-customer-support.json` | OpenAI, Webhook, Gmail, Slack |
+| 2 | 📧 **AI Email Auto-Responder** | `02-ai-email-responder.json` | OpenAI, Gmail, Google Sheets |
+| 3 | 📰 **AI Content Generator** | `02-ai-content-generator.json` | OpenAI, WordPress, Social |
+| 4 | ♻️ **Content Repurposer** | `05-content-repurposer.json` | OpenAI, Twitter, LinkedIn |
 
-1. Import any `.json` file into your N8N instance (Settings → Import Workflow)
-2. Configure credentials (API keys, OAuth) for each service
-3. Replace placeholder values (`YOUR_SHEET_ID`, `YOUR_PHONE_NUMBER_ID`, etc.)
-4. Activate and test
+### Lead Generation & CRM
+| # | Template | File | Key Integrations |
+|---|----------|------|-------------|
+| 5 | 🎯 **Lead Capture → CRM + AI** | `01-lead-capture-crm.json` | Webhook, Sheets, Gmail, Telegram |
+| 6 | 🎯 **Lead Gen CRM v2** | `lead-gen-crm.json` | Webhook, Scoring, Nurture Sequences |
+| 7 | 🎯 **Lead + AI Follow-up** | `01-lead-capture-crm-ai-followup.json` | OpenAI, CRM, Auto-Sequences |
 
-## Pricing (Fiverr)
+### Business Operations
+| # | Template | File | Key Integrations |
+|---|----------|------|-------------|
+| 8 | 📱 **WhatsApp Appointment Booker** | `04-whatsapp-appointment-booker.json` | WhatsApp Business, Calendar |
+| 9 | 📊 **Social Media Monitor** | `05-social-media-monitor.json` | Twitter, Slack, OpenAI |
+| 10 | 🧾 **Invoice Automation** | `06-invoice-automation.json` | Email, OCR, Sheets, Xero |
+| 11 | 🛒 **E-Commerce Order Processing** | `03-ecommerce-order-processing.json` | Shopify/WooCommerce, Email |
 
-| Plan | Price | What You Get |
-|------|-------|-------------|
-| Starter | $99 | 1 workflow + setup + docs |
-| Business | $249 | 3 connected workflows + AI + training |
-| AI Agent | $599 | Full multi-workflow AI agent system + 30-day support |
+## ⚡ Quick Start
 
-## About
+1. Clone: `git clone https://github.com/DILOmcfly/n8n-automation-templates.git`
+2. Open your n8n instance → Workflows → Import from File
+3. Select any `.json` template
+4. Configure credentials
+5. Activate!
 
-Built by [AuraHub](https://github.com/DILOmcfly) — AI automation specialists.
-- 🎬 YouTube: [@AuraHub](https://youtube.com/@AuraHub-d4w)
-- 🛠️ GitHub: [DILOmcfly](https://github.com/DILOmcfly)
+## 🎯 Use Cases by Industry
+
+| Industry | Recommended Templates |
+|----------|----------------------|
+| **SaaS / Tech** | AI Support Agent, Lead Capture, Content Generator |
+| **E-Commerce** | Order Processing, WhatsApp Booker, Invoice Automation |
+| **Marketing** | Content Repurposer, Social Monitor, AI Email |
+| **Hospitality** | WhatsApp Booking, Lead Gen CRM, AI Support |
+| **Agencies** | All — white-label for your clients |
+
+## 💡 Why n8n?
+
+n8n is **#1 rated for AI capabilities** in 2026, ahead of Make and Zapier. Self-hosted option for full data sovereignty. 400+ integrations. Open source.
+
+## 🤝 Need Custom Automation?
+
+Custom n8n workflows for businesses ($99-599). AI agents, self-hosted setup, training included.
+
+📬 [GitHub](https://github.com/DILOmcfly) | 🌐 [Portfolio](https://dilomcfly.github.io/portfolio)
+
+## License
+MIT — Free to use, modify, and resell.
