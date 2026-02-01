@@ -1,11 +1,12 @@
 # 🤖 N8N Workflow Templates — Production-Ready Collection
 
-> 11 automation templates for businesses. AI agents, lead gen, CRM, content, WhatsApp, and more.
+> 13 automation templates for businesses. AI agents, lead gen, CRM, content, WhatsApp, and more.
+> **NEW: Premium AI Client Onboarding System (20 nodes, enterprise-grade)**
 > Built by [DILOmcfly](https://github.com/DILOmcfly) | Powered by Aura ✦
 
 [![n8n](https://img.shields.io/badge/n8n-Automation-orange)](https://n8n.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Templates](https://img.shields.io/badge/Templates-11-green)]()
+[![Templates](https://img.shields.io/badge/Templates-13-green)]()
 
 ## 📦 Templates
 
@@ -49,6 +50,13 @@
 | **Marketing** | Content Repurposer, Social Monitor, AI Email |
 | **Hospitality** | WhatsApp Booking, Lead Gen CRM, AI Support |
 | **Agencies** | All — white-label for your clients |
+
+### ⭐ Premium
+| # | Template | File | Key Integrations |
+|---|----------|------|-------------|
+| 13 | 🏆 **AI Client Onboarding System** | `premium-ai-client-onboarding.json` | OpenAI, CRM API, Gmail, Google Calendar, Slack, Google Sheets |
+
+> **20 nodes** — Webhook intake → AI plan generation → CRM creation → personalized welcome email → task checklist → kickoff scheduling → team notification → audit logging. Includes centralized error handling with Slack alerts and Sheets logging. Enterprise-grade.
 
 ## 💡 Why n8n?
 
