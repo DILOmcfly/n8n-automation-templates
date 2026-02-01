@@ -1,0 +1,324 @@
+{
+  "name": "Hotel Staff Task Automation — Housekeeping & Maintenance",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hotel-tasks",
+        "options": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000001",
+      "name": "Webhook - New Task",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000002",
+      "name": "Schedule - Daily 6AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [220, 520]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.task_type }}",
+              "operation": "equal",
+              "value2": "checkout_clean"
+            }
+          ]
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000003",
+      "name": "Switch - Task Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [440, 300],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.task_type }}",
+                    "rightValue": "checkout_clean",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Housekeeping"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.task_type }}",
+                    "rightValue": "maintenance",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Maintenance"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.task_type }}",
+                    "rightValue": "concierge",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Concierge"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Operations Manager AI for a luxury Swiss hotel. Based on today's checkout list, generate optimized housekeeping task assignments.\n\nCheckout rooms: {{ $json.rooms || '[]' }}\nAvailable staff: {{ $json.staff || '[]' }}\nVIP arrivals today: {{ $json.vip_arrivals || '[]' }}\n\nRules:\n1. VIP arrival rooms get priority (clean first)\n2. Assign tasks by floor proximity (reduce walking time)\n3. Estimate 35min per standard room, 55min per suite\n4. Include minibar restock and amenity refresh for VIP rooms\n5. Flag any rooms needing deep clean (>3 night stays)\n\nReturn JSON array: [{staff, room, priority, estimated_minutes, special_notes}]"
+            }
+          ]
+        },
+        "options": { "temperature": 0.3 }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000004",
+      "name": "OpenAI - Optimize Housekeeping",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the Facilities Manager AI for a luxury Swiss hotel. Classify and route this maintenance request.\n\nRequest: {{ $json.description }}\nRoom: {{ $json.room }}\nReported by: {{ $json.reported_by }}\nUrgency (guest-reported): {{ $json.urgency || 'normal' }}\n\nClassify:\n1. Urgency: critical (guest safety/comfort), high (within 2h), medium (within 24h), low (scheduled)\n2. Department: plumbing, electrical, HVAC, furniture, IT, general\n3. Estimated time: minutes\n4. Whether guest needs to be relocated\n\nReturn JSON: {urgency, department, estimated_minutes, relocate_guest, recommended_action}"
+            }
+          ]
+        },
+        "options": { "temperature": 0.2 }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000005",
+      "name": "OpenAI - Classify Maintenance",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.4,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "mode": "list", "value": "" },
+        "sheetName": { "__rl": true, "mode": "list", "value": "" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ new Date().toISOString() }}",
+            "Task Type": "={{ $json.task_type }}",
+            "Room": "={{ $json.room }}",
+            "Assigned To": "={{ $json.assigned_to || 'Unassigned' }}",
+            "Priority": "={{ $json.priority || $json.urgency }}",
+            "Status": "Open",
+            "AI Notes": "={{ $json.ai_classification || $json.recommended_action }}"
+          }
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000006",
+      "name": "Google Sheets - Task Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#operations",
+        "text": "=📋 *New {{ $json.task_type }} Task*\n🏨 Room: {{ $json.room || 'N/A' }}\n⚡ Priority: {{ $json.priority || $json.urgency || 'normal' }}\n👤 Assigned: {{ $json.assigned_to || 'Auto-assigning...' }}\n📝 {{ $json.description || $json.special_notes || '' }}\n{{ $json.urgency === 'critical' ? '\\n🚨 *CRITICAL — Immediate attention required*' : '' }}",
+        "otherOptions": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000007",
+      "name": "Slack - Task Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [1180, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.urgency }}",
+              "operation": "equal",
+              "value2": "critical"
+            }
+          ]
+        }
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000008",
+      "name": "IF - Critical Task",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "ops@hotel.com",
+        "toEmail": "duty-manager@hotel.com",
+        "subject": "=🚨 CRITICAL: {{ $json.task_type }} — Room {{ $json.room }}",
+        "emailType": "html",
+        "html": "=<h2>🚨 Critical Task Alert</h2>\n<table>\n<tr><td><strong>Room:</strong></td><td>{{ $json.room }}</td></tr>\n<tr><td><strong>Type:</strong></td><td>{{ $json.task_type }}</td></tr>\n<tr><td><strong>Description:</strong></td><td>{{ $json.description }}</td></tr>\n<tr><td><strong>AI Classification:</strong></td><td>{{ $json.ai_classification }}</td></tr>\n<tr><td><strong>Estimated Time:</strong></td><td>{{ $json.estimated_minutes || '?' }} min</td></tr>\n<tr><td><strong>Guest Relocation:</strong></td><td>{{ $json.relocate_guest ? 'YES — arrange alternative room' : 'Not needed' }}</td></tr>\n</table>\n<p><em>Auto-generated by Hotel Operations AI</em></p>",
+        "options": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000009",
+      "name": "Email - Critical Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1620, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate daily housekeeping schedule from PMS checkout data\nconst today = new Date().toISOString().split('T')[0];\n\n// This would typically connect to the hotel PMS (Opera, Protel, etc.)\n// For template purposes, returns structure to be customized\nreturn [{\n  json: {\n    task_type: 'checkout_clean',\n    date: today,\n    rooms: $json.checkout_rooms || [],\n    staff: $json.available_staff || [],\n    vip_arrivals: $json.vip_list || [],\n    source: 'daily_schedule'\n  }\n}];"
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000010",
+      "name": "Code - Prepare Daily Schedule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 520]
+    },
+    {
+      "parameters": {},
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000011",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [220, 700]
+    },
+    {
+      "parameters": {
+        "channel": "#operations",
+        "text": "=❌ *Task Automation Error*\n{{ $json.execution?.error?.message || 'Unknown error' }}",
+        "otherOptions": {}
+      },
+      "id": "b2c3d4e5-2222-4bbb-cccc-000000000012",
+      "name": "Slack - Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [440, 700]
+    }
+  ],
+  "connections": {
+    "Webhook - New Task": {
+      "main": [
+        [
+          { "node": "Switch - Task Type", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Schedule - Daily 6AM": {
+      "main": [
+        [
+          { "node": "Code - Prepare Daily Schedule", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Code - Prepare Daily Schedule": {
+      "main": [
+        [
+          { "node": "Switch - Task Type", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Switch - Task Type": {
+      "main": [
+        [
+          { "node": "OpenAI - Optimize Housekeeping", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "OpenAI - Classify Maintenance", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Google Sheets - Task Log", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "OpenAI - Optimize Housekeeping": {
+      "main": [
+        [
+          { "node": "Google Sheets - Task Log", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "OpenAI - Classify Maintenance": {
+      "main": [
+        [
+          { "node": "Google Sheets - Task Log", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Google Sheets - Task Log": {
+      "main": [
+        [
+          { "node": "Slack - Task Notification", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Slack - Task Notification": {
+      "main": [
+        [
+          { "node": "IF - Critical Task", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF - Critical Task": {
+      "main": [
+        [
+          { "node": "Email - Critical Alert", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          { "node": "Slack - Error Alert", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "category": "hospitality",
+    "complexity": "advanced",
+    "suggestedPrice": 59,
+    "description": "Complete hotel operations automation: webhook for real-time task intake + daily 6AM housekeeping schedule. AI optimizes room assignments by priority (VIP first), floor proximity, and estimated time. Maintenance requests auto-classified by urgency and department. Critical tasks trigger immediate duty manager email. All tasks logged to Google Sheets. Designed for Swiss luxury hotels with multi-department coordination.",
+    "tags": ["hotel", "housekeeping", "maintenance", "operations", "AI", "hospitality", "task-management"]
+  }
+}
