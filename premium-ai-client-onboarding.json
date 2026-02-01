@@ -1,0 +1,447 @@
+{
+  "name": "Premium AI Client Onboarding System",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-client-onboarding",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "X-Workflow", "value": "premium-ai-client-onboarding" }
+            ]
+          }
+        }
+      },
+      "id": "webhook-onboarding-1",
+      "name": "Webhook - New Client Submission",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "notes": "Entry point for new client onboarding form submissions"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{ $json.email }}", "operation": "isNotEmpty" },
+            { "value1": "={{ $json.company_name }}", "operation": "isNotEmpty" },
+            { "value1": "={{ $json.full_name }}", "operation": "isNotEmpty" }
+          ]
+        }
+      },
+      "id": "if-onboarding-validate",
+      "name": "Validate Required Fields",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [470, 300],
+      "notes": "Ensure essential client fields are present"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"error\", \"message\": \"Missing required fields: full_name, email, company_name\" }"
+      },
+      "id": "respond-onboarding-error",
+      "name": "Respond - Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [690, 480]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "full_name", "value": "={{ $json.full_name }}" },
+            { "name": "email", "value": "={{ $json.email }}" },
+            { "name": "company_name", "value": "={{ $json.company_name }}" },
+            { "name": "phone", "value": "={{ $json.phone || '' }}" },
+            { "name": "website", "value": "={{ $json.website || '' }}" },
+            { "name": "budget", "value": "={{ $json.budget || '' }}" },
+            { "name": "industry", "value": "={{ $json.industry || '' }}" },
+            { "name": "goals", "value": "={{ $json.goals || '' }}" },
+            { "name": "timeline", "value": "={{ $json.timeline || '' }}" }
+          ]
+        }
+      },
+      "id": "set-onboarding-normalize",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "notes": "Standardize raw form payload into expected fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst clientId = `CLT-${Date.now()}`;\n\nreturn [{\n  json: {\n    ...input,\n    client_id: clientId,\n    submitted_at: new Date().toISOString(),\n    contact: {\n      name: input.full_name,\n      email: input.email,\n      phone: input.phone || ''\n    },\n    company: {\n      name: input.company_name,\n      website: input.website || '',\n      industry: input.industry || ''\n    }\n  }\n}];"
+      },
+      "id": "code-onboarding-context",
+      "name": "Build Client Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [930, 300],
+      "notes": "Create canonical client record with ID and timestamps"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "completions",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an onboarding strategist. Analyze client details and produce a JSON plan ONLY (no markdown). Required fields:\n- persona_summary (string)\n- onboarding_plan (array of 5-8 steps, each with title, description, owner)\n- kickoff_agenda (array of bullet strings)\n- crm_tags (array of strings)\n- welcome_email_subject (string)\n- welcome_email_html (string, friendly professional HTML)\n- tasks (array of objects: title, description, due_days, assignee)\n- kickoff_call (object: suggested_days_offset, duration_minutes, agenda_summary)\nReturn valid JSON only."
+            },
+            {
+              "role": "user",
+              "content": "=Client: {{ $json.full_name }} ({{ $json.email }})\nCompany: {{ $json.company_name }}\nWebsite: {{ $json.website }}\nIndustry: {{ $json.industry }}\nBudget: {{ $json.budget }}\nGoals: {{ $json.goals }}\nTimeline: {{ $json.timeline }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 900
+        }
+      },
+      "id": "openai-onboarding-plan",
+      "name": "OpenAI - Generate Onboarding Plan",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.6,
+      "position": [1170, 300],
+      "notes": "AI generates a personalized onboarding plan, tasks, and welcome email"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ai = $input.first().json;\nconst client = $('Build Client Context').first().json;\nconst raw = ai.message?.content || ai.choices?.[0]?.message?.content || '{}';\nlet plan;\ntry {\n  plan = JSON.parse(raw);\n} catch (e) {\n  plan = {\n    persona_summary: 'General client persona',\n    onboarding_plan: [\n      { title: 'Discovery', description: 'Confirm goals and success criteria', owner: 'CSM' },\n      { title: 'Access Setup', description: 'Collect credentials and tools', owner: 'Client' },\n      { title: 'Kickoff Call', description: 'Align stakeholders and timeline', owner: 'CSM' },\n      { title: 'Implementation', description: 'Build and configure solutions', owner: 'Delivery' },\n      { title: 'Review', description: 'Validate outputs and iterate', owner: 'CSM' }\n    ],\n    kickoff_agenda: ['Introductions', 'Success criteria', 'Timeline & milestones', 'Next steps'],\n    crm_tags: ['new-client'],\n    welcome_email_subject: 'Welcome aboard! Your onboarding is underway',\n    welcome_email_html: '<p>Hi {{name}},</p><p>Welcome! We are excited to get started. Your onboarding plan is ready and we will schedule the kickoff call shortly.</p><p>Best,<br>Client Success</p>',\n    tasks: [\n      { title: 'Send welcome pack', description: 'Share onboarding resources', due_days: 1, assignee: 'CSM' },\n      { title: 'Collect access details', description: 'Request credentials and tools', due_days: 2, assignee: 'Client' }\n    ],\n    kickoff_call: { suggested_days_offset: 3, duration_minutes: 60, agenda_summary: 'Align goals, timeline, and stakeholders' }\n  };\n}\n\nreturn [{\n  json: {\n    ...client,\n    ai_plan: plan,\n    ai_raw: raw\n  }\n}];"
+      },
+      "id": "code-onboarding-parse",
+      "name": "Parse Onboarding Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1410, 300],
+      "notes": "Parse AI JSON safely with fallback defaults"
+    },
+    {
+      "parameters": {
+        "url": "https://api.your-crm.com/v1/clients",
+        "method": "POST",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "options": {
+          "timeout": 10000
+        },
+        "headers": {
+          "Authorization": "Bearer YOUR_CRM_API_KEY"
+        },
+        "bodyParametersJson": "={\n  \"external_id\": \"{{ $json.client_id }}\",\n  \"name\": \"{{ $json.company.name }}\",\n  \"contact_name\": \"{{ $json.contact.name }}\",\n  \"contact_email\": \"{{ $json.contact.email }}\",\n  \"contact_phone\": \"{{ $json.contact.phone }}\",\n  \"website\": \"{{ $json.company.website }}\",\n  \"industry\": \"{{ $json.company.industry }}\",\n  \"tags\": {{ JSON.stringify($json.ai_plan.crm_tags || ['new-client']) }}\n}"
+      },
+      "id": "http-onboarding-crm",
+      "name": "CRM - Create Client",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1660, 300],
+      "notes": "Create client record in CRM",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst plan = data.ai_plan || {};\n\nconst subject = plan.welcome_email_subject || 'Welcome! Your onboarding is underway';\nconst html = plan.welcome_email_html\n  ? plan.welcome_email_html.split('{{name}}').join(data.contact.name)\n  : `<p>Hi ${data.contact.name},</p><p>Welcome aboard! We are excited to get started. Your onboarding plan is ready and we will schedule your kickoff call shortly.</p><p>Best,<br>Client Success</p>`;\n\nreturn [{\n  json: {\n    ...data,\n    welcome_subject: subject,\n    welcome_html: html\n  }\n}];"
+      },
+      "id": "code-onboarding-email",
+      "name": "Prepare Welcome Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 300],
+      "notes": "Prepare personalized welcome email content"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.contact.email }}",
+        "subject": "={{ $json.welcome_subject }}",
+        "emailType": "html",
+        "message": "={{ $json.welcome_html }}",
+        "options": {
+          "fromEmail": "success@yourcompany.com"
+        }
+      },
+      "id": "email-onboarding-welcome",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [2140, 300],
+      "notes": "Send AI-personalized welcome email",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst tasks = (data.ai_plan && Array.isArray(data.ai_plan.tasks) && data.ai_plan.tasks.length)\n  ? data.ai_plan.tasks\n  : [\n      { title: 'Kickoff prep', description: 'Confirm stakeholders and access', due_days: 2, assignee: 'CSM' },\n      { title: 'Technical setup', description: 'Configure tools and integrations', due_days: 3, assignee: 'Delivery' },\n      { title: 'Success criteria', description: 'Define KPIs and milestones', due_days: 4, assignee: 'CSM' }\n    ];\n\nreturn tasks.map((task, index) => ({\n  json: {\n    client_id: data.client_id,\n    company: data.company.name,\n    task_title: task.title || `Onboarding Task ${index + 1}`,\n    task_description: task.description || '',\n    due_days: task.due_days || 3,\n    assignee: task.assignee || 'CSM'\n  }\n}));"
+      },
+      "id": "code-onboarding-tasks",
+      "name": "Prepare Onboarding Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2380, 300],
+      "notes": "Create task payloads for project management tool"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-onboarding-tasks",
+      "name": "Split In Batches - Task Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2620, 300],
+      "notes": "Rate-limit task creation to avoid API throttling"
+    },
+    {
+      "parameters": {
+        "url": "https://api.your-pm-tool.com/v1/tasks",
+        "method": "POST",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "headers": {
+          "Authorization": "Bearer YOUR_PM_API_KEY"
+        },
+        "bodyParametersJson": "={\n  \"title\": \"{{ $json.task_title }}\",\n  \"description\": \"{{ $json.task_description }}\",\n  \"project_id\": \"YOUR_PROJECT_ID\",\n  \"assignee\": \"{{ $json.assignee }}\",\n  \"due_in_days\": {{ $json.due_days }},\n  \"metadata\": { \"client_id\": \"{{ $json.client_id }}\", \"company\": \"{{ $json.company }}\" }\n}"
+      },
+      "id": "http-onboarding-task",
+      "name": "PM Tool - Create Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2860, 300],
+      "notes": "Create onboarding tasks/checklist items",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1500
+      }
+    },
+    {
+      "parameters": {
+        "calendar": { "__rl": true, "value": "primary", "mode": "name" },
+        "summary": "={{ 'Kickoff Call - ' + $('Build Client Context').first().json.company.name }}",
+        "start": "={{ new Date(Date.now() + (($('Parse Onboarding Plan').first().json.ai_plan.kickoff_call.suggested_days_offset || 3) * 24 * 60 * 60 * 1000)).toISOString() }}",
+        "end": "={{ new Date(Date.now() + (($('Parse Onboarding Plan').first().json.ai_plan.kickoff_call.suggested_days_offset || 3) * 24 * 60 * 60 * 1000) + (($('Parse Onboarding Plan').first().json.ai_plan.kickoff_call.duration_minutes || 60) * 60 * 1000)).toISOString() }}",
+        "additionalFields": {
+          "description": "={{ 'Kickoff agenda: ' + (($('Parse Onboarding Plan').first().json.ai_plan.kickoff_call.agenda_summary) || 'Align goals, timeline, and stakeholders') }}",
+          "location": "Google Meet"
+        }
+      },
+      "id": "gcal-onboarding-kickoff",
+      "name": "Google Calendar - Schedule Kickoff",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.2,
+      "position": [3100, 300],
+      "notes": "Schedule kickoff call with suggested timing",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#client-onboarding",
+        "text": "=🎉 *New Client Onboarded*\n\n*Client:* {{ $('Build Client Context').first().json.company.name }}\n*Contact:* {{ $('Build Client Context').first().json.contact.name }} ({{ $('Build Client Context').first().json.contact.email }})\n*Client ID:* {{ $('Build Client Context').first().json.client_id }}\n\n*AI Persona:* {{ $('Parse Onboarding Plan').first().json.ai_plan.persona_summary }}\n*Kickoff:* Scheduled in {{ $('Parse Onboarding Plan').first().json.ai_plan.kickoff_call.suggested_days_offset || 3 }} days\n\n_This onboarding workflow auto-created CRM, tasks, welcome email, and calendar event._",
+        "otherOptions": {}
+      },
+      "id": "slack-onboarding-notify",
+      "name": "Slack - Notify Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [3340, 300],
+      "notes": "Team alert with AI insights and kickoff info",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Onboarding Log", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "values": [
+            { "column": "Date", "value": "={{ $('Build Client Context').first().json.submitted_at }}" },
+            { "column": "Client ID", "value": "={{ $('Build Client Context').first().json.client_id }}" },
+            { "column": "Company", "value": "={{ $('Build Client Context').first().json.company.name }}" },
+            { "column": "Contact", "value": "={{ $('Build Client Context').first().json.contact.name }}" },
+            { "column": "Email", "value": "={{ $('Build Client Context').first().json.contact.email }}" },
+            { "column": "Industry", "value": "={{ $('Build Client Context').first().json.company.industry }}" },
+            { "column": "AI Persona", "value": "={{ $('Parse Onboarding Plan').first().json.ai_plan.persona_summary }}" },
+            { "column": "Tags", "value": "={{ ($('Parse Onboarding Plan').first().json.ai_plan.crm_tags || []).join(', ') }}" },
+            { "column": "Status", "value": "Onboarded" }
+          ]
+        }
+      },
+      "id": "sheets-onboarding-log",
+      "name": "Google Sheets - Log Onboarding",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [3580, 300],
+      "notes": "Audit log of onboarding activity",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"success\", \"client_id\": \"{{ $('Build Client Context').first().json.client_id }}\", \"message\": \"Onboarding completed\" }"
+      },
+      "id": "respond-onboarding-success",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [3820, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-onboarding-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 640],
+      "notes": "Catches any workflow error for centralized alerting"
+    },
+    {
+      "parameters": {
+        "channel": "#client-onboarding-alerts",
+        "text": "=⚠️ *Onboarding Workflow Error*\n\n*Node:* {{ $json.trigger?.nodeName || $json.node?.name || 'Unknown' }}\n*Error:* {{ $json.error?.message || $json.errorMessage || 'Unknown error' }}\n*Execution:* {{ $json.execution?.id || 'N/A' }}\n\n*Payload:* {{ JSON.stringify($json).substring(0, 600) }}",
+        "otherOptions": {}
+      },
+      "id": "slack-onboarding-error",
+      "name": "Slack - Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [520, 640],
+      "notes": "Notify team on any workflow failure"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Onboarding Errors", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "values": [
+            { "column": "Date", "value": "={{ new Date().toISOString() }}" },
+            { "column": "Node", "value": "={{ $json.trigger?.nodeName || $json.node?.name || 'Unknown' }}" },
+            { "column": "Error", "value": "={{ $json.error?.message || $json.errorMessage || 'Unknown error' }}" },
+            { "column": "Execution", "value": "={{ $json.execution?.id || 'N/A' }}" }
+          ]
+        }
+      },
+      "id": "sheets-onboarding-error",
+      "name": "Google Sheets - Log Error",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [780, 640],
+      "notes": "Persistent error log for troubleshooting"
+    }
+  ],
+  "connections": {
+    "Webhook - New Client Submission": {
+      "main": [[{ "node": "Validate Required Fields", "type": "main", "index": 0 }]]
+    },
+    "Validate Required Fields": {
+      "main": [
+        [{ "node": "Normalize Input", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Validation Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize Input": {
+      "main": [[{ "node": "Build Client Context", "type": "main", "index": 0 }]]
+    },
+    "Build Client Context": {
+      "main": [[{ "node": "OpenAI - Generate Onboarding Plan", "type": "main", "index": 0 }]]
+    },
+    "OpenAI - Generate Onboarding Plan": {
+      "main": [[{ "node": "Parse Onboarding Plan", "type": "main", "index": 0 }]]
+    },
+    "Parse Onboarding Plan": {
+      "main": [[{ "node": "CRM - Create Client", "type": "main", "index": 0 }]]
+    },
+    "CRM - Create Client": {
+      "main": [[{ "node": "Prepare Welcome Email", "type": "main", "index": 0 }]]
+    },
+    "Prepare Welcome Email": {
+      "main": [[{ "node": "Send Welcome Email", "type": "main", "index": 0 }]]
+    },
+    "Send Welcome Email": {
+      "main": [[{ "node": "Prepare Onboarding Tasks", "type": "main", "index": 0 }]]
+    },
+    "Prepare Onboarding Tasks": {
+      "main": [[{ "node": "Split In Batches - Task Loop", "type": "main", "index": 0 }]]
+    },
+    "Split In Batches - Task Loop": {
+      "main": [
+        [{ "node": "PM Tool - Create Task", "type": "main", "index": 0 }],
+        [{ "node": "Google Calendar - Schedule Kickoff", "type": "main", "index": 0 }]
+      ]
+    },
+    "PM Tool - Create Task": {
+      "main": [[{ "node": "Split In Batches - Task Loop", "type": "main", "index": 0 }]]
+    },
+    "Google Calendar - Schedule Kickoff": {
+      "main": [[{ "node": "Slack - Notify Team", "type": "main", "index": 0 }]]
+    },
+    "Slack - Notify Team": {
+      "main": [[{ "node": "Google Sheets - Log Onboarding", "type": "main", "index": 0 }]]
+    },
+    "Google Sheets - Log Onboarding": {
+      "main": [[{ "node": "Respond - Success", "type": "main", "index": 0 }]]
+    },
+    "Error Trigger": {
+      "main": [[{ "node": "Slack - Error Alert", "type": "main", "index": 0 }]]
+    },
+    "Slack - Error Alert": {
+      "main": [[{ "node": "Google Sheets - Log Error", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "description": "Premium AI-powered client onboarding workflow: webhook intake, OpenAI plan generation, CRM creation, personalized welcome email, task checklist creation, kickoff scheduling, Slack notification, and full Google Sheets logging with error handling.",
+    "author": "DiegoAutomates",
+    "tags": ["onboarding", "ai", "crm", "email", "project-management", "calendar", "slack", "logging"]
+  },
+  "pinData": {
+    "Webhook - New Client Submission": [
+      {
+        "json": {
+          "full_name": "Morgan Lee",
+          "email": "morgan@northpeak.ai",
+          "company_name": "NorthPeak AI",
+          "phone": "+1-415-555-0182",
+          "website": "https://northpeak.ai",
+          "budget": "$8k/month",
+          "industry": "B2B SaaS",
+          "goals": "Automate lead qualification and onboarding",
+          "timeline": "Kickoff within 2 weeks"
+        }
+      }
+    ]
+  }
+}
