@@ -3,9 +3,19 @@
   "nodes": [
     {
       "parameters": {
-        "pollTimes": { "item": [{ "mode": "everyMinute", "minute": 30 }] },
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute",
+              "minute": 30
+            }
+          ]
+        },
         "sheetName": "Content Calendar",
-        "documentId": { "mode": "id", "value": "YOUR_CONTENT_SHEET_ID" },
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_CONTENT_SHEET_ID"
+        },
         "options": {
           "range": "A:G"
         }
@@ -14,7 +24,10 @@
       "name": "Check Content Calendar",
       "type": "n8n-nodes-base.googleSheetsTrigger",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [
+        250,
+        300
+      ]
     },
     {
       "parameters": {
@@ -24,12 +37,18 @@
             {
               "leftValue": "={{ $json.Status }}",
               "rightValue": "Ready",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             },
             {
               "leftValue": "={{ $json.Scheduled_Date }}",
               "rightValue": "={{ $now.format('yyyy-MM-dd') }}",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ]
         }
@@ -38,7 +57,10 @@
       "name": "Filter: Ready for Today",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2,
-      "position": [500, 300]
+      "position": [
+        500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -55,13 +77,20 @@
             }
           ]
         },
-        "options": { "temperature": 0.8, "responseFormat": "json_object" }
+        "options": {
+          "temperature": 0.8,
+          "responseFormat": "json_object",
+          "maxTokens": 800
+        }
       },
       "id": "ai-generate-posts",
       "name": "AI - Generate Platform Posts",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
-      "position": [750, 300]
+      "position": [
+        750,
+        300
+      ]
     },
     {
       "parameters": {
@@ -72,7 +101,10 @@
       "name": "Post to Twitter/X",
       "type": "n8n-nodes-base.twitter",
       "typeVersion": 2,
-      "position": [1050, 150]
+      "position": [
+        1050,
+        150
+      ]
     },
     {
       "parameters": {
@@ -84,12 +116,18 @@
       "name": "Post to LinkedIn",
       "type": "n8n-nodes-base.linkedIn",
       "typeVersion": 2,
-      "position": [1050, 300]
+      "position": [
+        1050,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "mode": "id", "value": "YOUR_CONTENT_SHEET_ID" },
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_CONTENT_SHEET_ID"
+        },
         "sheetName": "Content Calendar",
         "columns": {
           "mappingMode": "defineBelow",
@@ -107,7 +145,10 @@
       "name": "Mark as Published",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [1300, 300]
+      "position": [
+        1300,
+        300
+      ]
     },
     {
       "parameters": {
@@ -118,34 +159,86 @@
       "name": "Confirm on Slack",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [1300, 150]
+      "position": [
+        1300,
+        150
+      ]
     }
   ],
   "connections": {
     "Check Content Calendar": {
-      "main": [[{ "node": "Filter: Ready for Today", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Filter: Ready for Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Filter: Ready for Today": {
-      "main": [[{ "node": "AI - Generate Platform Posts", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "AI - Generate Platform Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "AI - Generate Platform Posts": {
-      "main": [[
-        { "node": "Post to Twitter/X", "type": "main", "index": 0 },
-        { "node": "Post to LinkedIn", "type": "main", "index": 0 }
-      ]]
+      "main": [
+        [
+          {
+            "node": "Post to Twitter/X",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Post to Twitter/X": {
-      "main": [[{ "node": "Confirm on Slack", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Confirm on Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Post to LinkedIn": {
-      "main": [[{ "node": "Mark as Published", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Mark as Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "meta": {
     "author": "AuraHub (github.com/DILOmcfly)",
     "description": "Reads your content calendar from Google Sheets, uses AI to generate platform-optimized posts (Twitter, LinkedIn, Instagram), publishes automatically, and notifies your team. One topic → multiple platforms, zero manual work.",
-    "categories": ["Social Media", "Marketing", "AI", "Content"],
+    "categories": [
+      "Social Media",
+      "Marketing",
+      "AI",
+      "Content"
+    ],
     "pricing": "Starter ($99)"
   }
 }

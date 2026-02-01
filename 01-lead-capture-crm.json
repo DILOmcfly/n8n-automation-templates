@@ -12,7 +12,10 @@
       "name": "Webhook - New Lead",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -29,7 +32,10 @@
       "name": "Has Email?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
@@ -47,14 +53,25 @@
       "name": "HubSpot - Create Contact",
       "type": "n8n-nodes-base.hubspot",
       "typeVersion": 2,
-      "position": [680, 200],
+      "position": [
+        680,
+        200
+      ],
       "notes": "Replace with your CRM: Salesforce, Airtable, Notion, etc."
     },
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Leads", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "autoMapInputData"
         }
@@ -63,7 +80,10 @@
       "name": "Google Sheets - Log Lead",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [680, 400]
+      "position": [
+        680,
+        400
+      ]
     },
     {
       "parameters": {
@@ -77,7 +97,15 @@
       "name": "Send Welcome Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [900, 200]
+      "position": [
+        900,
+        200
+      ],
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
     },
     {
       "parameters": {
@@ -89,7 +117,10 @@
       "name": "Slack - Notify Sales Team",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
@@ -100,29 +131,103 @@
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     }
   ],
   "connections": {
-    "Webhook - New Lead": { "main": [[{ "node": "Has Email?", "type": "main", "index": 0 }]] },
+    "Webhook - New Lead": {
+      "main": [
+        [
+          {
+            "node": "Has Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Has Email?": {
       "main": [
         [
-          { "node": "HubSpot - Create Contact", "type": "main", "index": 0 },
-          { "node": "Google Sheets - Log Lead", "type": "main", "index": 0 }
+          {
+            "node": "HubSpot - Create Contact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Log Lead",
+            "type": "main",
+            "index": 0
+          }
         ],
-        [{ "node": "Respond OK", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "HubSpot - Create Contact": { "main": [[{ "node": "Send Welcome Email", "type": "main", "index": 0 }]] },
-    "Google Sheets - Log Lead": { "main": [[{ "node": "Slack - Notify Sales Team", "type": "main", "index": 0 }]] },
-    "Send Welcome Email": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] },
-    "Slack - Notify Sales Team": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] }
+    "HubSpot - Create Contact": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets - Log Lead": {
+      "main": [
+        [
+          {
+            "node": "Slack - Notify Sales Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Notify Sales Team": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "meta": {
     "description": "Captures leads from any form/webhook, creates CRM contact, logs to Google Sheets, sends welcome email, and notifies sales team on Slack. Fully customizable.",
     "author": "DiegoAutomates",
-    "tags": ["lead-capture", "crm", "automation", "sales"]
+    "tags": [
+      "lead-capture",
+      "crm",
+      "automation",
+      "sales"
+    ]
   }
 }

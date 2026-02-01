@@ -8,7 +8,12 @@
         "responseMode": "responseNode",
         "options": {
           "responseHeaders": {
-            "entries": [{ "name": "X-Powered-By", "value": "n8n-ai-support" }]
+            "entries": [
+              {
+                "name": "X-Powered-By",
+                "value": "n8n-ai-support"
+              }
+            ]
           }
         }
       },
@@ -16,14 +21,23 @@
       "name": "Webhook - Incoming Ticket",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 400]
+      "position": [
+        240,
+        400
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "string": [
-            { "value1": "={{ $json.message }}", "operation": "isNotEmpty" },
-            { "value1": "={{ $json.customer_email }}", "operation": "isNotEmpty" }
+            {
+              "value1": "={{ $json.message }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.customer_email }}",
+              "operation": "isNotEmpty"
+            }
           ]
         }
       },
@@ -31,7 +45,10 @@
       "name": "Validate Input",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -59,7 +76,10 @@
       "name": "OpenAI - Classify Ticket",
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1.6,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "notes": "Classifies urgency, category, sentiment, and FAQ detection"
     },
     {
@@ -70,13 +90,19 @@
       "name": "Parse Classification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 400]
+      "position": [
+        900,
+        400
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "boolean": [
-            { "value1": "={{ $json.is_faq }}", "value2": true }
+            {
+              "value1": "={{ $json.is_faq }}",
+              "value2": true
+            }
           ]
         }
       },
@@ -84,7 +110,10 @@
       "name": "Is FAQ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1120, 400]
+      "position": [
+        1120,
+        400
+      ]
     },
     {
       "parameters": {
@@ -103,13 +132,19 @@
             }
           ]
         },
-        "options": { "temperature": 0.5, "maxTokens": 500 }
+        "options": {
+          "temperature": 0.5,
+          "maxTokens": 500
+        }
       },
       "id": "openai-cs-faq-reply",
       "name": "OpenAI - FAQ Auto-Reply",
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1.6,
-      "position": [1340, 260],
+      "position": [
+        1340,
+        260
+      ],
       "notes": "Generates instant auto-reply for common questions"
     },
     {
@@ -124,7 +159,15 @@
       "name": "Send FAQ Auto-Reply",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1560, 260]
+      "position": [
+        1560,
+        260
+      ],
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
     },
     {
       "parameters": {
@@ -143,13 +186,19 @@
             }
           ]
         },
-        "options": { "temperature": 0.6, "maxTokens": 800 }
+        "options": {
+          "temperature": 0.6,
+          "maxTokens": 800
+        }
       },
       "id": "openai-cs-draft",
       "name": "OpenAI - Draft Response",
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1.6,
-      "position": [1340, 540],
+      "position": [
+        1340,
+        540
+      ],
       "notes": "Drafts response for human review (non-FAQ tickets)"
     },
     {
@@ -162,27 +211,68 @@
       "name": "Slack - Send for Approval",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [1560, 540],
+      "position": [
+        1560,
+        540
+      ],
       "notes": "Agent reviews AI draft before sending to customer"
     },
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Support Tickets", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Support Tickets",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "values": [
-            { "column": "Ticket ID", "value": "={{ $('Parse Classification').first().json.ticket_id }}" },
-            { "column": "Date", "value": "={{ $('Parse Classification').first().json.classified_at }}" },
-            { "column": "Customer Name", "value": "={{ $('Parse Classification').first().json.customer_name }}" },
-            { "column": "Customer Email", "value": "={{ $('Parse Classification').first().json.customer_email }}" },
-            { "column": "Subject", "value": "={{ $('Parse Classification').first().json.subject }}" },
-            { "column": "Category", "value": "={{ $('Parse Classification').first().json.category }}" },
-            { "column": "Urgency", "value": "={{ $('Parse Classification').first().json.urgency }}" },
-            { "column": "Sentiment", "value": "={{ $('Parse Classification').first().json.sentiment }}" },
-            { "column": "Is FAQ", "value": "={{ $('Parse Classification').first().json.is_faq }}" },
-            { "column": "Status", "value": "={{ $('Parse Classification').first().json.is_faq ? 'Auto-Replied' : 'Pending Review' }}" }
+            {
+              "column": "Ticket ID",
+              "value": "={{ $('Parse Classification').first().json.ticket_id }}"
+            },
+            {
+              "column": "Date",
+              "value": "={{ $('Parse Classification').first().json.classified_at }}"
+            },
+            {
+              "column": "Customer Name",
+              "value": "={{ $('Parse Classification').first().json.customer_name }}"
+            },
+            {
+              "column": "Customer Email",
+              "value": "={{ $('Parse Classification').first().json.customer_email }}"
+            },
+            {
+              "column": "Subject",
+              "value": "={{ $('Parse Classification').first().json.subject }}"
+            },
+            {
+              "column": "Category",
+              "value": "={{ $('Parse Classification').first().json.category }}"
+            },
+            {
+              "column": "Urgency",
+              "value": "={{ $('Parse Classification').first().json.urgency }}"
+            },
+            {
+              "column": "Sentiment",
+              "value": "={{ $('Parse Classification').first().json.sentiment }}"
+            },
+            {
+              "column": "Is FAQ",
+              "value": "={{ $('Parse Classification').first().json.is_faq }}"
+            },
+            {
+              "column": "Status",
+              "value": "={{ $('Parse Classification').first().json.is_faq ? 'Auto-Replied' : 'Pending Review' }}"
+            }
           ]
         }
       },
@@ -190,7 +280,10 @@
       "name": "Google Sheets - Log Ticket",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [1780, 400]
+      "position": [
+        1780,
+        400
+      ]
     },
     {
       "parameters": {
@@ -201,7 +294,10 @@
       "name": "Respond - Ticket Created",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [2000, 400]
+      "position": [
+        2000,
+        400
+      ]
     },
     {
       "parameters": {
@@ -212,7 +308,10 @@
       "name": "Respond - Validation Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [680, 600]
+      "position": [
+        680,
+        600
+      ]
     },
     {
       "parameters": {
@@ -224,45 +323,136 @@
       "name": "Slack - Error Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [1780, 700]
+      "position": [
+        1780,
+        700
+      ]
     }
   ],
   "connections": {
     "Webhook - Incoming Ticket": {
-      "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate Input": {
       "main": [
-        [{ "node": "OpenAI - Classify Ticket", "type": "main", "index": 0 }],
-        [{ "node": "Respond - Validation Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "OpenAI - Classify Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "OpenAI - Classify Ticket": {
-      "main": [[{ "node": "Parse Classification", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse Classification": {
-      "main": [[{ "node": "Is FAQ?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Is FAQ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Is FAQ?": {
       "main": [
-        [{ "node": "OpenAI - FAQ Auto-Reply", "type": "main", "index": 0 }],
-        [{ "node": "OpenAI - Draft Response", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "OpenAI - FAQ Auto-Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OpenAI - Draft Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "OpenAI - FAQ Auto-Reply": {
-      "main": [[{ "node": "Send FAQ Auto-Reply", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send FAQ Auto-Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Send FAQ Auto-Reply": {
-      "main": [[{ "node": "Google Sheets - Log Ticket", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Log Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "OpenAI - Draft Response": {
-      "main": [[{ "node": "Slack - Send for Approval", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Slack - Send for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Slack - Send for Approval": {
-      "main": [[{ "node": "Google Sheets - Log Ticket", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Log Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Google Sheets - Log Ticket": {
-      "main": [[{ "node": "Respond - Ticket Created", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond - Ticket Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -272,7 +462,13 @@
   "meta": {
     "description": "AI-powered customer support bot that classifies tickets by urgency/category/sentiment, auto-replies to FAQs, drafts responses for complex issues, and routes to Slack for human approval. Full ticket logging in Google Sheets.",
     "author": "DiegoAutomates",
-    "tags": ["customer-support", "ai", "chatbot", "automation", "helpdesk"]
+    "tags": [
+      "customer-support",
+      "ai",
+      "chatbot",
+      "automation",
+      "helpdesk"
+    ]
   },
   "pinData": {
     "Webhook - Incoming Ticket": [

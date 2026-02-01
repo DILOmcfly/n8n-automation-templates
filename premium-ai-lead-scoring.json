@@ -1,0 +1,441 @@
+{
+  "name": "Premium AI Lead Scoring & Smart Routing",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-lead-scoring",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "X-Workflow", "value": "premium-ai-lead-scoring" }
+            ]
+          }
+        }
+      },
+      "id": "webhook-lead-intake-1",
+      "name": "Webhook - Lead Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "notes": "Entry point for lead submissions"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{ $json.name }}", "operation": "isNotEmpty" },
+            { "value1": "={{ $json.email }}", "operation": "isNotEmpty" },
+            { "value1": "={{ $json.company }}", "operation": "isNotEmpty" }
+          ]
+        }
+      },
+      "id": "if-lead-validate",
+      "name": "Validate Required Fields",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [470, 300],
+      "notes": "Ensure name, email, and company are present"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"error\", \"message\": \"Missing required fields: name, email, company\" }"
+      },
+      "id": "respond-lead-error",
+      "name": "Respond - Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [690, 480]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "name", "value": "={{ $json.name }}" },
+            { "name": "email", "value": "={{ $json.email }}" },
+            { "name": "company", "value": "={{ $json.company }}" },
+            { "name": "source", "value": "={{ $json.source || 'unknown' }}" },
+            { "name": "message", "value": "={{ $json.message || '' }}" }
+          ]
+        }
+      },
+      "id": "set-lead-normalize",
+      "name": "Normalize Lead Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "notes": "Standardize incoming lead payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst leadId = `LEAD-${Date.now()}`;\n\nreturn [{\n  json: {\n    ...input,\n    lead_id: leadId,\n    submitted_at: new Date().toISOString(),\n    lead_context: {\n      name: input.name,\n      email: input.email,\n      company: input.company,\n      source: input.source || 'unknown',\n      message: input.message || ''\n    }\n  }\n}];"
+      },
+      "id": "code-lead-context",
+      "name": "Build Lead Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [930, 300],
+      "notes": "Create canonical lead record with ID and timestamp"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "completions",
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a lead scoring assistant. Score the lead from 1-100 based on intent, company size, and urgency. Return JSON only with fields: score (number), intent_summary (string), company_size_guess (string), urgency_level (low|medium|high), routing_reason (string)."
+            },
+            {
+              "role": "user",
+              "content": "=Lead: {{ $json.name }} ({{ $json.email }})\nCompany: {{ $json.company }}\nSource: {{ $json.source }}\nMessage: {{ $json.message }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 300
+        }
+      },
+      "id": "openai-lead-score",
+      "name": "OpenAI - Score Lead",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.6,
+      "position": [1170, 300],
+      "notes": "AI-generated lead score and routing rationale"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ai = $input.first().json;\nconst base = $('Build Lead Context').first().json;\nconst raw = ai.message?.content || ai.choices?.[0]?.message?.content || '{}';\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = {\n    score: 50,\n    intent_summary: 'General inquiry',\n    company_size_guess: 'unknown',\n    urgency_level: 'medium',\n    routing_reason: 'Fallback score applied due to parsing error'\n  };\n}\n\nconst score = Math.max(1, Math.min(100, Number(parsed.score) || 50));\n\nreturn [{\n  json: {\n    ...base,\n    lead_score: score,\n    intent_summary: parsed.intent_summary || 'General inquiry',\n    company_size_guess: parsed.company_size_guess || 'unknown',\n    urgency_level: parsed.urgency_level || 'medium',\n    routing_reason: parsed.routing_reason || 'No reason provided',\n    ai_raw: raw\n  }\n}];"
+      },
+      "id": "code-lead-parse",
+      "name": "Parse Lead Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1410, 300],
+      "notes": "Parse AI JSON safely with fallback defaults"
+    },
+    {
+      "parameters": {
+        "url": "https://api.your-crm.com/v1/leads",
+        "method": "POST",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "options": {
+          "timeout": 10000
+        },
+        "headers": {
+          "Authorization": "Bearer YOUR_CRM_API_KEY"
+        },
+        "bodyParametersJson": "={\n  \"external_id\": \"{{ $json.lead_id }}\",\n  \"name\": \"{{ $json.name }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"company\": \"{{ $json.company }}\",\n  \"source\": \"{{ $json.source }}\",\n  \"message\": \"{{ $json.message }}\",\n  \"lead_score\": {{ $json.lead_score }},\n  \"intent_summary\": \"{{ $json.intent_summary }}\",\n  \"urgency_level\": \"{{ $json.urgency_level }}\"\n}"
+      },
+      "id": "http-crm-upsert",
+      "name": "CRM - Upsert Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1660, 300],
+      "notes": "Create or update lead in CRM",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "operation": "largerEqual",
+              "value1": "={{ $json.lead_score }}",
+              "value2": 80
+            },
+            {
+              "operation": "largerEqual",
+              "value1": "={{ $json.lead_score }}",
+              "value2": 50
+            }
+          ]
+        }
+      },
+      "id": "switch-lead-route",
+      "name": "Switch - Route by Score",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1890, 300],
+      "notes": "Hot (80+), Warm (50-79), Cold (<50)"
+    },
+    {
+      "parameters": {
+        "channel": "#sales-hot-leads",
+        "text": "=*HOT LEAD ALERT*\n\nName: {{ $json.name }}\nCompany: {{ $json.company }}\nEmail: {{ $json.email }}\nScore: {{ $json.lead_score }}\nUrgency: {{ $json.urgency_level }}\nReason: {{ $json.routing_reason }}\nMessage: {{ $json.message }}",
+        "otherOptions": {}
+      },
+      "id": "slack-hot-alert",
+      "name": "Slack - Hot Lead Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [2120, 160],
+      "notes": "Notify sales team immediately for hot leads",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ 'Quick call to discuss your request, ' + $json.name }}",
+        "emailType": "html",
+        "message": "={{ '<p>Hi ' + $json.name + ',</p><p>Thanks for reaching out. Based on your request, the fastest next step is a short call.</p><p><strong>Book a time here:</strong> https://calendly.com/your-team/intro</p><p>Looking forward,<br>Sales Team</p>' }}",
+        "options": {
+          "fromEmail": "sales@yourcompany.com"
+        }
+      },
+      "id": "email-hot-book",
+      "name": "Email - Calendar Booking",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [2360, 160],
+      "notes": "Send booking email for hot leads",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ 'Resources to help you get started, ' + $json.name }}",
+        "emailType": "html",
+        "message": "={{ '<p>Hi ' + $json.name + ',</p><p>Thanks for your interest. Here are a few resources that can help immediately:</p><ul><li>Lead qualification checklist</li><li>Automation ROI calculator</li><li>Case study: 3x faster response times</li></ul><p>We are here if you want to chat.</p><p>Best,<br>Growth Team</p>' }}",
+        "options": {
+          "fromEmail": "hello@yourcompany.com"
+        }
+      },
+      "id": "email-warm-1",
+      "name": "Email - Nurture 1",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [2120, 320],
+      "notes": "Warm lead nurture email #1",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "days"
+      },
+      "id": "wait-warm-3d",
+      "name": "Wait - 3 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2360, 320],
+      "notes": "Delay before second nurture touch"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ 'Quick follow-up on your automation goals' }}",
+        "emailType": "html",
+        "message": "={{ '<p>Hi ' + $json.name + ',</p><p>Just checking in. If you want, we can outline a simple plan based on your goals and timeline.</p><p>Reply to this email or book a time that works for you.</p><p>Best,<br>Growth Team</p>' }}",
+        "options": {
+          "fromEmail": "hello@yourcompany.com"
+        }
+      },
+      "id": "email-warm-2",
+      "name": "Email - Nurture 2",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [2600, 320],
+      "notes": "Warm lead nurture email #2",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "retarget_tag", "value": "cold-lead-retarget" }
+          ]
+        }
+      },
+      "id": "set-cold-tag",
+      "name": "Set Retarget Tag",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [2120, 500],
+      "notes": "Tag cold leads for retargeting"
+    },
+    {
+      "parameters": {
+        "url": "https://api.your-ads.com/v1/retargeting",
+        "method": "POST",
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "headers": {
+          "Authorization": "Bearer YOUR_ADS_API_KEY"
+        },
+        "bodyParametersJson": "={\n  \"email\": \"{{ $('Parse Lead Score').first().json.email }}\",\n  \"company\": \"{{ $('Parse Lead Score').first().json.company }}\",\n  \"tag\": \"{{ $json.retarget_tag }}\"\n}"
+      },
+      "id": "http-cold-retarget",
+      "name": "Retargeting - Add Tag",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2360, 500],
+      "notes": "Send cold lead to retargeting platform",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"success\", \"lead_id\": \"{{ $('Build Lead Context').first().json.lead_id }}\", \"score\": {{ $('Parse Lead Score').first().json.lead_score }}, \"message\": \"Lead processed\" }"
+      },
+      "id": "respond-lead-success",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2120, 40]
+    },
+    {
+      "parameters": {},
+      "id": "error-lead-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 720],
+      "notes": "Catches any workflow error for centralized alerting"
+    },
+    {
+      "parameters": {
+        "channel": "#lead-routing-alerts",
+        "text": "=*Lead Routing Workflow Error*\n\nNode: {{ $json.trigger?.nodeName || $json.node?.name || 'Unknown' }}\nError: {{ $json.error?.message || $json.errorMessage || 'Unknown error' }}\nExecution: {{ $json.execution?.id || 'N/A' }}\n\nPayload: {{ JSON.stringify($json).substring(0, 600) }}",
+        "otherOptions": {}
+      },
+      "id": "slack-lead-error",
+      "name": "Slack - Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [520, 720],
+      "notes": "Notify team on any workflow failure"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Lead Routing Errors", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "values": [
+            { "column": "Date", "value": "={{ new Date().toISOString() }}" },
+            { "column": "Node", "value": "={{ $json.trigger?.nodeName || $json.node?.name || 'Unknown' }}" },
+            { "column": "Error", "value": "={{ $json.error?.message || $json.errorMessage || 'Unknown error' }}" },
+            { "column": "Execution", "value": "={{ $json.execution?.id || 'N/A' }}" }
+          ]
+        }
+      },
+      "id": "sheets-lead-error",
+      "name": "Google Sheets - Log Error",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [780, 720],
+      "notes": "Persistent error log for troubleshooting"
+    }
+  ],
+  "connections": {
+    "Webhook - Lead Intake": {
+      "main": [[{ "node": "Validate Required Fields", "type": "main", "index": 0 }]]
+    },
+    "Validate Required Fields": {
+      "main": [
+        [{ "node": "Normalize Lead Input", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Validation Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize Lead Input": {
+      "main": [[{ "node": "Build Lead Context", "type": "main", "index": 0 }]]
+    },
+    "Build Lead Context": {
+      "main": [[{ "node": "OpenAI - Score Lead", "type": "main", "index": 0 }]]
+    },
+    "OpenAI - Score Lead": {
+      "main": [[{ "node": "Parse Lead Score", "type": "main", "index": 0 }]]
+    },
+    "Parse Lead Score": {
+      "main": [[{ "node": "CRM - Upsert Lead", "type": "main", "index": 0 }]]
+    },
+    "CRM - Upsert Lead": {
+      "main": [
+        [{ "node": "Switch - Route by Score", "type": "main", "index": 0 }],
+        [{ "node": "Respond - Success", "type": "main", "index": 0 }]
+      ]
+    },
+    "Switch - Route by Score": {
+      "main": [
+        [{ "node": "Slack - Hot Lead Alert", "type": "main", "index": 0 }],
+        [{ "node": "Email - Nurture 1", "type": "main", "index": 0 }],
+        [{ "node": "Set Retarget Tag", "type": "main", "index": 0 }]
+      ]
+    },
+    "Slack - Hot Lead Alert": {
+      "main": [[{ "node": "Email - Calendar Booking", "type": "main", "index": 0 }]]
+    },
+    "Email - Nurture 1": {
+      "main": [[{ "node": "Wait - 3 Days", "type": "main", "index": 0 }]]
+    },
+    "Wait - 3 Days": {
+      "main": [[{ "node": "Email - Nurture 2", "type": "main", "index": 0 }]]
+    },
+    "Set Retarget Tag": {
+      "main": [[{ "node": "Retargeting - Add Tag", "type": "main", "index": 0 }]]
+    },
+    "Error Trigger": {
+      "main": [[{ "node": "Slack - Error Alert", "type": "main", "index": 0 }]]
+    },
+    "Slack - Error Alert": {
+      "main": [[{ "node": "Google Sheets - Log Error", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "meta": {
+    "description": "Premium AI lead scoring and smart routing workflow: webhook intake, AI scoring, CRM upsert, hot/warm/cold routing with Slack alerts, nurture sequence, retarget tagging, and centralized error handling.",
+    "author": "DiegoAutomates",
+    "tags": ["lead-scoring", "ai", "crm", "routing", "slack", "email", "retargeting"]
+  },
+  "pinData": {
+    "Webhook - Lead Intake": [
+      {
+        "json": {
+          "name": "Avery Chen",
+          "email": "avery@northpeak.io",
+          "company": "NorthPeak AI",
+          "source": "website",
+          "message": "We need an urgent lead routing system with AI scoring and CRM sync. Looking to launch within 2 weeks."
+        }
+      }
+    ]
+  }
+}

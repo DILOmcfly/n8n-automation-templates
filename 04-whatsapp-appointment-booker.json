@@ -3,14 +3,19 @@
   "nodes": [
     {
       "parameters": {
-        "updates": ["message"],
+        "updates": [
+          "message"
+        ],
         "additionalFields": {}
       },
       "id": "whatsapp-trigger",
       "name": "WhatsApp Trigger",
       "type": "n8n-nodes-base.whatsAppTrigger",
       "typeVersion": 1,
-      "position": [250, 300],
+      "position": [
+        250,
+        300
+      ],
       "webhookId": "whatsapp-booking"
     },
     {
@@ -32,7 +37,10 @@
       "name": "AI - Parse Intent",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.4,
-      "position": [500, 300]
+      "position": [
+        500,
+        300
+      ]
     },
     {
       "parameters": {
@@ -42,18 +50,26 @@
       "name": "Parse AI Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [750, 300]
+      "position": [
+        750,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": false },
+          "options": {
+            "caseSensitive": false
+          },
           "conditions": [
             {
               "id": "booking",
               "leftValue": "={{ $json.intent }}",
               "rightValue": "book",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ]
         }
@@ -62,7 +78,10 @@
       "name": "Route by Intent",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1000, 300]
+      "position": [
+        1000,
+        300
+      ]
     },
     {
       "parameters": {
@@ -93,12 +112,23 @@
       "name": "Create Calendly Link",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1250, 200]
+      "position": [
+        1250,
+        200
+      ],
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
     },
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "mode": "id", "value": "YOUR_SHEET_ID" },
+        "documentId": {
+          "mode": "id",
+          "value": "YOUR_SHEET_ID"
+        },
         "sheetName": "Bookings",
         "columns": {
           "mappingMode": "defineBelow",
@@ -117,7 +147,10 @@
       "name": "Log Booking",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [1250, 400]
+      "position": [
+        1250,
+        400
+      ]
     },
     {
       "parameters": {
@@ -129,7 +162,10 @@
       "name": "Reply - Booking Link",
       "type": "n8n-nodes-base.whatsApp",
       "typeVersion": 1,
-      "position": [1500, 200]
+      "position": [
+        1500,
+        200
+      ]
     },
     {
       "parameters": {
@@ -141,7 +177,10 @@
       "name": "Reply - General",
       "type": "n8n-nodes-base.whatsApp",
       "typeVersion": 1,
-      "position": [1250, 500]
+      "position": [
+        1250,
+        500
+      ]
     },
     {
       "parameters": {
@@ -153,35 +192,90 @@
       "name": "Notify Team (Slack)",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [1500, 400]
+      "position": [
+        1500,
+        400
+      ]
     }
   ],
   "connections": {
     "WhatsApp Trigger": {
-      "main": [[{ "node": "AI - Parse Intent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "AI - Parse Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "AI - Parse Intent": {
-      "main": [[{ "node": "Parse AI Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse AI Response": {
-      "main": [[{ "node": "Route by Intent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Route by Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Route by Intent": {
       "main": [
         [
-          { "node": "Create Calendly Link", "type": "main", "index": 0 },
-          { "node": "Log Booking", "type": "main", "index": 0 }
+          {
+            "node": "Create Calendly Link",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Booking",
+            "type": "main",
+            "index": 0
+          }
         ],
         [
-          { "node": "Reply - General", "type": "main", "index": 0 }
+          {
+            "node": "Reply - General",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Create Calendly Link": {
-      "main": [[{ "node": "Reply - Booking Link", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Reply - Booking Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Log Booking": {
-      "main": [[{ "node": "Notify Team (Slack)", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notify Team (Slack)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -190,7 +284,11 @@
   "meta": {
     "templateId": "whatsapp-appointment-booker-v1",
     "description": "AI-powered WhatsApp chatbot that books appointments via Calendly, logs to Google Sheets, and notifies your team on Slack. GPT analyzes customer messages to extract booking intent.",
-    "categories": ["Sales", "Communication", "AI"],
+    "categories": [
+      "Sales",
+      "Communication",
+      "AI"
+    ],
     "author": "AuraHub (github.com/DILOmcfly)"
   }
 }

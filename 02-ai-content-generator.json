@@ -3,31 +3,58 @@
   "nodes": [
     {
       "parameters": {
-        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 9 * * 1-5" }] }
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
       },
       "id": "cron-1",
       "name": "Schedule - Weekdays 9AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "read",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Content Calendar", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Content Calendar",
+          "mode": "name"
+        },
         "filters": {
           "conditions": [
-            { "field": "status", "condition": "equals", "value": "ready" }
+            {
+              "field": "status",
+              "condition": "equals",
+              "value": "ready"
+            }
           ]
         },
-        "options": { "returnFirstMatch": true }
+        "options": {
+          "returnFirstMatch": true
+        }
       },
       "id": "sheets-read",
       "name": "Get Next Content Topic",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
@@ -46,13 +73,19 @@
             }
           ]
         },
-        "options": { "temperature": 0.7 }
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 800
+        }
       },
       "id": "openai-linkedin",
       "name": "AI - Write LinkedIn Post",
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1.8,
-      "position": [680, 200]
+      "position": [
+        680,
+        200
+      ]
     },
     {
       "parameters": {
@@ -71,25 +104,36 @@
             }
           ]
         },
-        "options": { "temperature": 0.8 }
+        "options": {
+          "temperature": 0.8,
+          "maxTokens": 800
+        }
       },
       "id": "openai-twitter",
       "name": "AI - Write Twitter Thread",
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1.8,
-      "position": [680, 400]
+      "position": [
+        680,
+        400
+      ]
     },
     {
       "parameters": {
         "resource": "post",
         "text": "={{ $('AI - Write LinkedIn Post').item.json.message.content }}",
-        "additionalFields": { "visibility": "PUBLIC" }
+        "additionalFields": {
+          "visibility": "PUBLIC"
+        }
       },
       "id": "linkedin-1",
       "name": "Publish to LinkedIn",
       "type": "n8n-nodes-base.linkedIn",
       "typeVersion": 1,
-      "position": [920, 200],
+      "position": [
+        920,
+        200
+      ],
       "notes": "Requires LinkedIn OAuth credentials"
     },
     {
@@ -101,14 +145,25 @@
       "name": "Publish to X/Twitter",
       "type": "n8n-nodes-base.twitter",
       "typeVersion": 2,
-      "position": [920, 400],
+      "position": [
+        920,
+        400
+      ],
       "notes": "Requires Twitter API v2 credentials"
     },
     {
       "parameters": {
         "operation": "update",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Content Calendar", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Content Calendar",
+          "mode": "name"
+        },
         "columns": {
           "values": {
             "status": "published",
@@ -120,7 +175,10 @@
       "name": "Mark as Published",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [1140, 300]
+      "position": [
+        1140,
+        300
+      ]
     },
     {
       "parameters": {
@@ -131,26 +189,97 @@
       "name": "Slack - Content Published",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [1140, 500]
+      "position": [
+        1140,
+        500
+      ]
     }
   ],
   "connections": {
-    "Schedule - Weekdays 9AM": { "main": [[{ "node": "Get Next Content Topic", "type": "main", "index": 0 }]] },
-    "Get Next Content Topic": {
-      "main": [[
-        { "node": "AI - Write LinkedIn Post", "type": "main", "index": 0 },
-        { "node": "AI - Write Twitter Thread", "type": "main", "index": 0 }
-      ]]
+    "Schedule - Weekdays 9AM": {
+      "main": [
+        [
+          {
+            "node": "Get Next Content Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "AI - Write LinkedIn Post": { "main": [[{ "node": "Publish to LinkedIn", "type": "main", "index": 0 }]] },
-    "AI - Write Twitter Thread": { "main": [[{ "node": "Publish to X/Twitter", "type": "main", "index": 0 }]] },
-    "Publish to LinkedIn": { "main": [[{ "node": "Mark as Published", "type": "main", "index": 0 }]] },
-    "Publish to X/Twitter": { "main": [[{ "node": "Slack - Content Published", "type": "main", "index": 0 }]] }
+    "Get Next Content Topic": {
+      "main": [
+        [
+          {
+            "node": "AI - Write LinkedIn Post",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI - Write Twitter Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Write LinkedIn Post": {
+      "main": [
+        [
+          {
+            "node": "Publish to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Write Twitter Thread": {
+      "main": [
+        [
+          {
+            "node": "Publish to X/Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish to LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Mark as Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish to X/Twitter": {
+      "main": [
+        [
+          {
+            "node": "Slack - Content Published",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "meta": {
     "description": "Reads topic from content calendar, generates platform-specific posts with AI (OpenAI), publishes to LinkedIn + Twitter, marks as done. Runs weekdays at 9AM.",
     "author": "DiegoAutomates",
-    "tags": ["ai", "content", "social-media", "openai", "automation"]
+    "tags": [
+      "ai",
+      "content",
+      "social-media",
+      "openai",
+      "automation"
+    ]
   }
 }

@@ -12,14 +12,23 @@
       "name": "Webhook - New Sale",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 400]
+      "position": [
+        240,
+        400
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "string": [
-            { "value1": "={{ $json.customer_email }}", "operation": "isNotEmpty" },
-            { "value1": "={{ $json.items }}", "operation": "isNotEmpty" }
+            {
+              "value1": "={{ $json.customer_email }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.items }}",
+              "operation": "isNotEmpty"
+            }
           ]
         }
       },
@@ -27,7 +36,10 @@
       "name": "Validate Sale Data",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [460, 400]
+      "position": [
+        460,
+        400
+      ]
     },
     {
       "parameters": {
@@ -37,7 +49,10 @@
       "name": "Process Invoice Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 400],
+      "position": [
+        680,
+        400
+      ],
       "notes": "Generates invoice number, calculates totals, tax, due date"
     },
     {
@@ -48,7 +63,10 @@
       "name": "Generate Invoice HTML",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 400],
+      "position": [
+        900,
+        400
+      ],
       "notes": "Professional invoice HTML template — customize branding here"
     },
     {
@@ -62,7 +80,10 @@
       "name": "HTML to File",
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
-      "position": [1120, 400],
+      "position": [
+        1120,
+        400
+      ],
       "notes": "Converts HTML string to downloadable file. For PDF, connect an HTML-to-PDF service or use n8n's HTML node."
     },
     {
@@ -79,29 +100,81 @@
       "name": "Email Invoice to Customer",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [1340, 400],
-      "notes": "Sends invoice with HTML attachment"
+      "position": [
+        1340,
+        400
+      ],
+      "notes": "Sends invoice with HTML attachment",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
     },
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Invoices", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Invoices",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "values": [
-            { "column": "Invoice Number", "value": "={{ $json.invoice_number }}" },
-            { "column": "Date", "value": "={{ $json.invoice_date }}" },
-            { "column": "Due Date", "value": "={{ $json.due_date }}" },
-            { "column": "Customer", "value": "={{ $json.customer_name }}" },
-            { "column": "Email", "value": "={{ $json.customer_email }}" },
-            { "column": "Subtotal", "value": "={{ $json.subtotal }}" },
-            { "column": "Tax", "value": "={{ $json.tax_amount }}" },
-            { "column": "Total", "value": "={{ $json.total }}" },
-            { "column": "Currency", "value": "={{ $json.currency }}" },
-            { "column": "Status", "value": "sent" },
-            { "column": "Payment Terms", "value": "={{ $json.payment_terms }}" },
-            { "column": "Items Count", "value": "={{ $json.items.length }}" }
+            {
+              "column": "Invoice Number",
+              "value": "={{ $json.invoice_number }}"
+            },
+            {
+              "column": "Date",
+              "value": "={{ $json.invoice_date }}"
+            },
+            {
+              "column": "Due Date",
+              "value": "={{ $json.due_date }}"
+            },
+            {
+              "column": "Customer",
+              "value": "={{ $json.customer_name }}"
+            },
+            {
+              "column": "Email",
+              "value": "={{ $json.customer_email }}"
+            },
+            {
+              "column": "Subtotal",
+              "value": "={{ $json.subtotal }}"
+            },
+            {
+              "column": "Tax",
+              "value": "={{ $json.tax_amount }}"
+            },
+            {
+              "column": "Total",
+              "value": "={{ $json.total }}"
+            },
+            {
+              "column": "Currency",
+              "value": "={{ $json.currency }}"
+            },
+            {
+              "column": "Status",
+              "value": "sent"
+            },
+            {
+              "column": "Payment Terms",
+              "value": "={{ $json.payment_terms }}"
+            },
+            {
+              "column": "Items Count",
+              "value": "={{ $json.items.length }}"
+            }
           ]
         }
       },
@@ -109,7 +182,10 @@
       "name": "Google Sheets - Log Invoice",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [1560, 400]
+      "position": [
+        1560,
+        400
+      ]
     },
     {
       "parameters": {
@@ -121,7 +197,10 @@
       "name": "Slack - Invoice Sent",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [1780, 400]
+      "position": [
+        1780,
+        400
+      ]
     },
     {
       "parameters": {
@@ -132,32 +211,54 @@
       "name": "Respond - Invoice Created",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [2000, 400]
+      "position": [
+        2000,
+        400
+      ]
     },
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }]
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
         }
       },
       "id": "schedule-inv-overdue",
       "name": "Daily Overdue Check",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 700]
+      "position": [
+        240,
+        700
+      ]
     },
     {
       "parameters": {
         "operation": "read",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Invoices", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Invoices",
+          "mode": "name"
+        },
         "options": {}
       },
       "id": "sheets-inv-read",
       "name": "Google Sheets - Read Invoices",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [460, 700]
+      "position": [
+        460,
+        700
+      ]
     },
     {
       "parameters": {
@@ -167,13 +268,19 @@
       "name": "Check Overdue Invoices",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 700]
+      "position": [
+        680,
+        700
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "boolean": [
-            { "value1": "={{ $json.no_overdue }}", "value2": false }
+            {
+              "value1": "={{ $json.no_overdue }}",
+              "value2": false
+            }
           ]
         }
       },
@@ -181,7 +288,10 @@
       "name": "Any Overdue?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 700]
+      "position": [
+        900,
+        700
+      ]
     },
     {
       "parameters": {
@@ -193,32 +303,54 @@
       "name": "Slack - Overdue Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [1120, 700]
+      "position": [
+        1120,
+        700
+      ]
     },
     {
       "parameters": {
         "rule": {
-          "interval": [{ "field": "cronExpression", "expression": "0 8 1 * *" }]
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 1 * *"
+            }
+          ]
         }
       },
       "id": "schedule-inv-monthly",
       "name": "Monthly Summary Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 1000]
+      "position": [
+        240,
+        1000
+      ]
     },
     {
       "parameters": {
         "operation": "read",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Invoices", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Invoices",
+          "mode": "name"
+        },
         "options": {}
       },
       "id": "sheets-inv-monthly-read",
       "name": "Read All Invoices",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [460, 1000]
+      "position": [
+        460,
+        1000
+      ]
     },
     {
       "parameters": {
@@ -228,7 +360,10 @@
       "name": "Generate Monthly Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 1000]
+      "position": [
+        680,
+        1000
+      ]
     },
     {
       "parameters": {
@@ -240,7 +375,10 @@
       "name": "Slack - Monthly Summary",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [900, 1000]
+      "position": [
+        900,
+        1000
+      ]
     },
     {
       "parameters": {
@@ -251,7 +389,10 @@
       "name": "Respond - Validation Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [680, 560]
+      "position": [
+        680,
+        560
+      ]
     },
     {
       "parameters": {
@@ -263,60 +404,185 @@
       "name": "Slack - Error Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [1340, 560]
+      "position": [
+        1340,
+        560
+      ]
     }
   ],
   "connections": {
     "Webhook - New Sale": {
-      "main": [[{ "node": "Validate Sale Data", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate Sale Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate Sale Data": {
       "main": [
-        [{ "node": "Process Invoice Data", "type": "main", "index": 0 }],
-        [{ "node": "Respond - Validation Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Process Invoice Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Process Invoice Data": {
-      "main": [[{ "node": "Generate Invoice HTML", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Generate Invoice HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Generate Invoice HTML": {
-      "main": [[{ "node": "HTML to File", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "HTML to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "HTML to File": {
-      "main": [[{ "node": "Email Invoice to Customer", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Email Invoice to Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Email Invoice to Customer": {
-      "main": [[{ "node": "Google Sheets - Log Invoice", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Log Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Google Sheets - Log Invoice": {
-      "main": [[{ "node": "Slack - Invoice Sent", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Slack - Invoice Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Slack - Invoice Sent": {
-      "main": [[{ "node": "Respond - Invoice Created", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond - Invoice Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Daily Overdue Check": {
-      "main": [[{ "node": "Google Sheets - Read Invoices", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Read Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Google Sheets - Read Invoices": {
-      "main": [[{ "node": "Check Overdue Invoices", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Check Overdue Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Check Overdue Invoices": {
-      "main": [[{ "node": "Any Overdue?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Any Overdue?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Any Overdue?": {
       "main": [
-        [{ "node": "Slack - Overdue Alert", "type": "main", "index": 0 }],
+        [
+          {
+            "node": "Slack - Overdue Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
         []
       ]
     },
     "Monthly Summary Trigger": {
-      "main": [[{ "node": "Read All Invoices", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Read All Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Read All Invoices": {
-      "main": [[{ "node": "Generate Monthly Summary", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Generate Monthly Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Generate Monthly Summary": {
-      "main": [[{ "node": "Slack - Monthly Summary", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Slack - Monthly Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -326,7 +592,13 @@
   "meta": {
     "description": "Complete invoicing automation: generates professional invoices from webhook sales data, emails them to customers, logs to accounting spreadsheet, alerts on overdue payments (>7 days), and generates monthly revenue reports.",
     "author": "DiegoAutomates",
-    "tags": ["invoicing", "accounting", "pdf", "automation", "finance"]
+    "tags": [
+      "invoicing",
+      "accounting",
+      "pdf",
+      "automation",
+      "finance"
+    ]
   },
   "pinData": {
     "Webhook - New Sale": [
@@ -337,9 +609,21 @@
           "company_name": "Acme Corporation",
           "customer_address": "456 Enterprise Ave, Suite 200, Business City, CA 90210",
           "items": [
-            { "description": "n8n Workflow Setup — Lead Capture", "quantity": 1, "unit_price": 350 },
-            { "description": "Custom Integration — Shopify + CRM", "quantity": 1, "unit_price": 500 },
-            { "description": "Monthly Maintenance (3 months)", "quantity": 3, "unit_price": 100 }
+            {
+              "description": "n8n Workflow Setup — Lead Capture",
+              "quantity": 1,
+              "unit_price": 350
+            },
+            {
+              "description": "Custom Integration — Shopify + CRM",
+              "quantity": 1,
+              "unit_price": 500
+            },
+            {
+              "description": "Monthly Maintenance (3 months)",
+              "quantity": 3,
+              "unit_price": 100
+            }
           ],
           "tax_rate": 8.5,
           "currency": "USD",

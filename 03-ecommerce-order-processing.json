@@ -10,7 +10,10 @@
       "name": "Shopify - New Order",
       "type": "n8n-nodes-base.shopifyTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [
+        240,
+        300
+      ]
     },
     {
       "parameters": {
@@ -28,7 +31,10 @@
       "name": "High Value Order? (≥$100)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
@@ -41,13 +47,29 @@
       "name": "Send Confirmation Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [680, 200]
+      "position": [
+        680,
+        200
+      ],
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 2000
+      }
     },
     {
       "parameters": {
         "operation": "append",
-        "documentId": { "__rl": true, "value": "YOUR_SHEET_ID", "mode": "id" },
-        "sheetName": { "__rl": true, "value": "Orders", "mode": "name" },
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Orders",
+          "mode": "name"
+        },
         "columns": {
           "values": {
             "order_number": "={{ $json.order_number }}",
@@ -64,7 +86,10 @@
       "name": "Log Order to Sheets",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [680, 400]
+      "position": [
+        680,
+        400
+      ]
     },
     {
       "parameters": {
@@ -75,7 +100,10 @@
       "name": "Slack - New Order Alert",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
     },
     {
       "parameters": {
@@ -93,13 +121,20 @@
               "content": "Write a short personalized thank-you for {{ $json.customer.first_name }} who just bought {{ $json.line_items.map(i => i.title).join(' and ') }} for ${{ $json.total_price }}. Max 2 sentences. Be genuine, not robotic."
             }
           ]
+        },
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 800
         }
       },
       "id": "openai-thankyou",
       "name": "AI - Personal Thank You (VIP)",
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1.8,
-      "position": [900, 100],
+      "position": [
+        900,
+        100
+      ],
       "notes": "Only triggers for high-value orders (≥$100)"
     },
     {
@@ -117,33 +152,109 @@
       "name": "Send to Fulfillment API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 300],
-      "notes": "Connect to your fulfillment provider (ShipStation, ShipBob, etc.)"
+      "position": [
+        1120,
+        300
+      ],
+      "notes": "Connect to your fulfillment provider (ShipStation, ShipBob, etc.)",
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
     }
   ],
   "connections": {
-    "Shopify - New Order": { "main": [[{ "node": "High Value Order? (≥$100)", "type": "main", "index": 0 }]] },
-    "High Value Order? (≥$100)": {
+    "Shopify - New Order": {
       "main": [
         [
-          { "node": "Send Confirmation Email", "type": "main", "index": 0 },
-          { "node": "Log Order to Sheets", "type": "main", "index": 0 },
-          { "node": "AI - Personal Thank You (VIP)", "type": "main", "index": 0 }
-        ],
-        [
-          { "node": "Send Confirmation Email", "type": "main", "index": 0 },
-          { "node": "Log Order to Sheets", "type": "main", "index": 0 }
+          {
+            "node": "High Value Order? (≥$100)",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Send Confirmation Email": { "main": [[{ "node": "Slack - New Order Alert", "type": "main", "index": 0 }]] },
-    "Log Order to Sheets": { "main": [[{ "node": "Slack - New Order Alert", "type": "main", "index": 0 }]] },
-    "Slack - New Order Alert": { "main": [[{ "node": "Send to Fulfillment API", "type": "main", "index": 0 }]] }
+    "High Value Order? (≥$100)": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Order to Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI - Personal Thank You (VIP)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Order to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Slack - New Order Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Order to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Slack - New Order Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - New Order Alert": {
+      "main": [
+        [
+          {
+            "node": "Send to Fulfillment API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "meta": {
     "description": "Processes Shopify orders automatically: sends confirmation email, logs to Google Sheets, notifies Slack, generates AI thank-you for VIP orders (≥$100), forwards to fulfillment API.",
     "author": "DiegoAutomates",
-    "tags": ["ecommerce", "shopify", "orders", "ai", "fulfillment"]
+    "tags": [
+      "ecommerce",
+      "shopify",
+      "orders",
+      "ai",
+      "fulfillment"
+    ]
   }
 }
