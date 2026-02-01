@@ -1,0 +1,210 @@
+{
+  "name": "Hotel Guest Communication Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "hoursInterval": 1}]
+        }
+      },
+      "id": "trigger-1",
+      "name": "Check Bookings Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.pms_api_url}}/bookings/upcoming",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {"name": "check_in_date", "value": "={{$today.plus({days: 1}).toFormat('yyyy-MM-dd')}}"}
+            ]
+          }
+        }
+      },
+      "id": "http-1",
+      "name": "Get Tomorrow Arrivals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{$json.pre_arrival_email_sent}}",
+              "rightValue": false,
+              "operator": {"type": "boolean", "operation": "equals"}
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter-1",
+      "name": "Filter: Not Yet Contacted",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "You are a warm, professional hotel concierge writing pre-arrival emails. The hotel is a boutique alpine hotel in Switzerland.\n\nGuest: {{$json.guest_name}}\nCheck-in: {{$json.check_in_date}}\nRoom: {{$json.room_type}}\nSpecial requests: {{$json.special_requests || 'None'}}\nPrevious stays: {{$json.previous_stays || 0}}\n\nWrite a personalized pre-arrival email that:\n1. Welcomes them warmly (mention if returning guest)\n2. Confirms their booking details\n3. Mentions check-in time (14:00) and any early/late arrangements\n4. Offers to help with restaurant reservations or activity bookings\n5. Includes practical info: train station pickup shuttle, weather tip\n\nKeep it warm but concise. Sign as 'The [Hotel Name] Team'.",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {"temperature": 0.7, "maxTokens": 500}
+      },
+      "id": "ai-1",
+      "name": "AI: Generate Personal Email",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "concierge@hotel.com",
+        "toEmail": "={{$json.guest_email}}",
+        "subject": "Welcome to [Hotel Name] — Your Stay on {{$json.check_in_date}} 🏔️",
+        "emailType": "html",
+        "html": "={{$('AI: Generate Personal Email').item.json.text.replace(/\\n/g, '<br>')}}"
+      },
+      "id": "email-1",
+      "name": "Send Pre-Arrival Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.pms_api_url}}/bookings/{{$json.booking_id}}/update",
+        "method": "PATCH",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "body": {
+          "jsonBody": "{\"pre_arrival_email_sent\": true, \"email_sent_at\": \"{{$now.toISO()}}\"}"
+        }
+      },
+      "id": "http-2",
+      "name": "Mark Email Sent in PMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "hoursInterval": 4}]
+        }
+      },
+      "id": "trigger-2",
+      "name": "Check Reviews Every 4h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 600]
+    },
+    {
+      "parameters": {
+        "url": "https://api.tripadvisor.com/reviews/hotel/{{$json.hotel_id}}/recent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "queryParameters": {
+            "parameters": [
+              {"name": "since", "value": "={{$now.minus({hours: 4}).toISO()}}"}
+            ]
+          }
+        }
+      },
+      "id": "http-3",
+      "name": "Fetch New Reviews",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 600]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "You are the hotel manager responding to a guest review. Be professional, warm, and specific.\n\nReview rating: {{$json.rating}}/5\nReview text: {{$json.review_text}}\nGuest name: {{$json.reviewer_name}}\n\nIf positive (4-5 stars): Thank them warmly, reference specific things they mentioned, invite them back.\nIf negative (1-3 stars): Acknowledge concerns, apologize specifically, offer to discuss privately, show you'll improve.\n\nKeep under 150 words. Sign as 'Management Team'.",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {"temperature": 0.6, "maxTokens": 300}
+      },
+      "id": "ai-2",
+      "name": "AI: Draft Review Response",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "channel": "#reviews",
+        "text": "📝 New {{$json.rating}}⭐ review from {{$json.reviewer_name}}:\n\n\"{{$json.review_text}}\"\n\n✏️ Suggested response:\n{{$('AI: Draft Review Response').item.json.text}}",
+        "otherOptions": {}
+      },
+      "id": "slack-1",
+      "name": "Notify Team on Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-1",
+              "name": "summary",
+              "value": "={{$json.bookings_processed}} pre-arrival emails sent, {{$json.reviews_handled}} reviews processed",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "set-1",
+      "name": "Daily Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Check Bookings Every Hour": {"main": [[{"node": "Get Tomorrow Arrivals", "type": "main", "index": 0}]]},
+    "Get Tomorrow Arrivals": {"main": [[{"node": "Filter: Not Yet Contacted", "type": "main", "index": 0}]]},
+    "Filter: Not Yet Contacted": {"main": [[{"node": "AI: Generate Personal Email", "type": "main", "index": 0}]]},
+    "AI: Generate Personal Email": {"main": [[{"node": "Send Pre-Arrival Email", "type": "main", "index": 0}, {"node": "Mark Email Sent in PMS", "type": "main", "index": 0}]]},
+    "Send Pre-Arrival Email": {"main": [[{"node": "Daily Summary", "type": "main", "index": 0}]]},
+    "Check Reviews Every 4h": {"main": [[{"node": "Fetch New Reviews", "type": "main", "index": 0}]]},
+    "Fetch New Reviews": {"main": [[{"node": "AI: Draft Review Response", "type": "main", "index": 0}]]},
+    "AI: Draft Review Response": {"main": [[{"node": "Notify Team on Slack", "type": "main", "index": 0}]]}
+  },
+  "pinData": {},
+  "settings": {"executionOrder": "v1"},
+  "staticData": null,
+  "tags": [
+    {"name": "hospitality"},
+    {"name": "ai-automation"},
+    {"name": "hotel"},
+    {"name": "guest-communication"},
+    {"name": "review-management"}
+  ],
+  "triggerCount": 2,
+  "updatedAt": "2026-02-01T14:15:00.000Z",
+  "versionId": "1"
+}
